@@ -1,0 +1,134 @@
+# ==============================================================================
+# Git Ignore for AI Meeting Note (Monorepo: AI Service, Backend, Frontend)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Environment & Secrets (Bảo mật tài khoản & khóa API)
+# ------------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ------------------------------------------------------------------------------
+# 2. Operating System & Editor Files (Hệ điều hành & Trình soạn thảo)
+# ------------------------------------------------------------------------------
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# IntelliJ IDEA / WebStorm / PyCharm
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+
+# Other Editors
+*.swp
+*.swo
+*~
+
+# ------------------------------------------------------------------------------
+# 3. Python & AI Service (ai-service)
+# ------------------------------------------------------------------------------
+# Virtual Environment
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Python Bytecode & Cache
+**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# AI Model weights & checkpoints lớn (nếu tải offline về thư mục dự án)
+*.pt
+*.pth
+*.bin
+*.onnx
+*.safetensors
+models/
+model_cache/
+huggingface_cache/
+
+# Audio temp files được tạo trong quá trình xử lý
+**/temp_*
+**/temp_*.wav
+**/temp_*.mp3
+**/temp_*.m4a
+*.tmp
+
+# ------------------------------------------------------------------------------
+# 4. Java & Spring Boot (backend)
+# ------------------------------------------------------------------------------
+**/backend/target/
+**/target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+.mvn/wrapper/maven-wrapper.jar
+
+# Spring Tool Suite / Eclipse
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache
+
+# NetBeans
+**/nbproject/private/
+**/nbbuild/
+**/nbdist/
+**/.nb-gradle/
+
+# ------------------------------------------------------------------------------
+# 5. Frontend (React / Vite)
+# ------------------------------------------------------------------------------
+**/node_modules/
+**/dist/
+**/dist-ssr/
+*.local
+
+# Package Manager Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ------------------------------------------------------------------------------
+# 6. General & Miscellaneous
+# ------------------------------------------------------------------------------
+note
