@@ -21,7 +21,9 @@ app.add_middleware(
 # ==========================================
 # 1. Tai mo hinh 1 lan duy nhat khi khoi dong server
 # ==========================================
-device = "cuda:0" if torch.cuda.is_available() else "cpu"
+
+device = "cpu"
+# device = "cuda:0" if torch.cuda.is_available() else "cpu"
 print(f"[INFO] Loading models on {device}...")
 
 # --- Mo hinh STT: PhoWhisper ---
@@ -50,20 +52,25 @@ print("[INFO] All models loaded. Ready to receive requests!")
 # 2. Ham tien ich: Tóm tat van ban bang Qwen
 # ==========================================
 def summarize_text(transcript: str) -> str:
-    """Nhan dau vao la van ban phien am, tra ve ban tom tat dang gach dau dong."""
+    """Nhan dau vao la van ban phien am, tra ve ban tom tat dang gach dau dong chuan tieng Viet."""
+    system_prompt = (
+        "Bạn là thư ký cuộc họp AI chuyên nghiệp. Nhiệm vụ của bạn là đọc nội dung phiên âm cuộc họp "
+        "và tóm tắt lại các ý chính một cách súc tích, chính xác bằng tiếng Việt.\n\n"
+        "Quy tắc bắt buộc:\n"
+        "- Tuyệt đối KHÔNG viết lời chào hỏi hoặc kết thư (cấm viết 'Chào các bạn', 'Rất mong mọi người...').\n"
+        "- Chỉ tập trung vào sự thật có trong nội dung, không suy diễn hoặc bịa đặt thêm thông tin.\n"
+        "- Trình bày kết quả rõ ràng theo cấu trúc gạch đầu dòng sau:\n"
+        "Mục đích cuộc họp:\n"
+        "Đánh giá tiến độ & Kết quả đạt được:\n"
+        "Vấn đề tồn đọng:\n"
+        "Phân công công việc & Thời hạn:"
+    )
+
+    user_prompt = f"Hãy tóm tắt nội dung cuộc họp sau đây theo đúng quy tắc:\n\n{transcript}"
+
     messages = [
-        {
-            "role": "system",
-            "content": (
-                "Ban la mot tro ly AI chuyen nghiep. Nhiem vu cua ban la doc ban ghi am cuoc hop "
-                "va tom tat nhung y chinh quan trong nhat duoi dang cac gach dau dong ngan gon, de hieu. "
-                "Hay viet bang tieng Viet."
-            )
-        },
-        {
-            "role": "user",
-            "content": f"Hay tom tat noi dung cuoc hop sau:\n\n{transcript}"
-        }
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt}
     ]
 
     text = llm_tokenizer.apply_chat_template(
@@ -75,7 +82,8 @@ def summarize_text(transcript: str) -> str:
         outputs = llm_model.generate(
             **inputs,
             max_new_tokens=400,
-            temperature=0.3,
+            temperature=0.1,        # Nhiet do thap giup model bam sat su that, tranh bia dat
+            repetition_penalty=1.1,  # Han che lap tu
             do_sample=True
         )
 

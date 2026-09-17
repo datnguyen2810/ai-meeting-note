@@ -1,6 +1,7 @@
 import os
 import torch
 from transformers import pipeline
+# pyrefly: ignore [missing-import]
 from jiwer import wer
 
 # 1. Khởi tạo phần cứng và mô hình
