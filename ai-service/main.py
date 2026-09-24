@@ -22,8 +22,8 @@ app.add_middleware(
 # 1. Tai mo hinh 1 lan duy nhat khi khoi dong server
 # ==========================================
 
-device = "cpu"
-# device = "cuda:0" if torch.cuda.is_available() else "cpu"
+# device = "cpu"
+device = "cuda:0" if torch.cuda.is_available() else "cpu"
 print(f"[INFO] Loading models on {device}...")
 
 # --- Mo hinh STT: PhoWhisper ---
