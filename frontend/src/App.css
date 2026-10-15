@@ -57,13 +57,22 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 32px;
+  padding: 12px 28px;
   background: #ffffff;
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
   z-index: 100;
   backdrop-filter: blur(8px);
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .navbar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px 16px;
+  }
 }
 
 .nav-brand {
@@ -84,6 +93,7 @@ body {
   font-weight: 700;
   font-size: 20px;
   box-shadow: var(--shadow-glow);
+  flex-shrink: 0;
 }
 
 .brand-title {
@@ -91,6 +101,7 @@ body {
   font-weight: 700;
   letter-spacing: -0.3px;
   color: var(--text-main);
+  line-height: 1.2;
 }
 
 .brand-sub {
@@ -101,15 +112,16 @@ body {
 
 .nav-tabs {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   background: var(--bg-subtle);
   padding: 4px;
   border-radius: var(--radius-md);
+  flex-wrap: wrap;
 }
 
 .nav-tab-btn {
-  padding: 8px 18px;
-  font-size: 14px;
+  padding: 8px 16px;
+  font-size: 13px;
   font-weight: 600;
   border-radius: var(--radius-sm);
   border: none;
@@ -117,6 +129,14 @@ body {
   color: var(--text-muted);
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nav-tab-btn:hover {
+  color: var(--text-main);
 }
 
 .nav-tab-btn.active {
@@ -128,7 +148,8 @@ body {
 .nav-user {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
 .status-badge {
@@ -161,14 +182,31 @@ body {
 .user-profile {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 14px;
+  gap: 6px;
+  font-size: 13px;
   font-weight: 600;
+  color: var(--text-main);
+}
+
+.login-nav-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  background: var(--primary);
+  color: white;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.login-nav-btn:hover {
+  background: var(--primary-hover);
 }
 
 .logout-btn {
   padding: 6px 14px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   border: 1px solid var(--border);
   background: white;
@@ -187,10 +225,10 @@ body {
 /* Main Content Area */
 .main-content {
   flex: 1;
-  max-width: 1050px;
+  max-width: 1100px;
   width: 100%;
   margin: 0 auto;
-  padding: 32px 24px 64px;
+  padding: 28px 20px 64px;
 }
 
 /* Cards & Sections */
@@ -198,14 +236,14 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 28px;
+  padding: 24px;
   box-shadow: var(--shadow-md);
   margin-bottom: 24px;
   transition: all 0.2s;
 }
 
 .card-title {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--text-main);
   margin: 0 0 6px;
@@ -215,9 +253,9 @@ body {
 }
 
 .card-desc {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--text-muted);
-  margin: 0 0 20px;
+  margin: 0 0 18px;
 }
 
 /* Form Controls */
@@ -225,7 +263,7 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
-  margin-bottom: 20px;
+  margin-bottom: 18px;
 }
 
 @media (max-width: 768px) {
@@ -266,7 +304,7 @@ body {
 .upload-dropzone {
   border: 2px dashed var(--border);
   border-radius: var(--radius-md);
-  padding: 32px 20px;
+  padding: 28px 20px;
   text-align: center;
   background: var(--bg-page);
   cursor: pointer;
@@ -275,7 +313,7 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .upload-dropzone:hover {
@@ -289,17 +327,17 @@ body {
 }
 
 .dropzone-icon {
-  font-size: 36px;
+  font-size: 32px;
 }
 
 .dropzone-text {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-main);
 }
 
 .dropzone-hint {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-muted);
 }
 
@@ -313,7 +351,7 @@ body {
   background: var(--accent-gradient);
   color: white;
   font-weight: 600;
-  font-size: 15px;
+  font-size: 14px;
   border: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -480,12 +518,15 @@ body {
 
 /* Auth Modal Overlay */
 .auth-overlay {
-  min-height: 100vh;
+  position: fixed;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at 50% 20%, #e0e7ff 0%, #f8fafc 80%);
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
   padding: 24px;
+  z-index: 1000;
 }
 
 .auth-card {
@@ -496,6 +537,29 @@ body {
   padding: 36px 32px;
   box-shadow: var(--shadow-lg);
   border: 1px solid rgba(226, 232, 240, 0.8);
+  position: relative;
+}
+
+.auth-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: var(--text-muted);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.auth-close-btn:hover {
+  background: var(--bg-subtle);
+  color: var(--text-main);
 }
 
 .auth-header {

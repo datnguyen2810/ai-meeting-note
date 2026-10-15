@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { api } from "../services/api";
 
-export default function AuthModal({ onLoginSuccess }) {
+export default function AuthModal({ onLoginSuccess, onClose }) {
   const [isRegister, setIsRegister] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -59,6 +59,16 @@ export default function AuthModal({ onLoginSuccess }) {
   return (
     <div className="auth-overlay">
       <div className="auth-card">
+        {onClose && (
+          <button
+            type="button"
+            className="auth-close-btn"
+            onClick={onClose}
+            title="Đóng"
+          >
+            ✕
+          </button>
+        )}
         <div className="auth-header">
           <div className="auth-badge">Hệ Thống Thông Minh</div>
           <h2 className="auth-title">
