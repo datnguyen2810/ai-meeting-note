@@ -157,14 +157,14 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
           />
           <span style={{ fontWeight: 500 }}>
             {status === "recording" && "Đang trong cuộc họp"}
-            {status === "connecting" && "Đang kết nối AI Service..."}
+            {status === "connecting" && "Đang kết nối..."}
             {status === "stopping" && "Đang kết thúc phiên họp..."}
             {status === "idle" && "Sẵn sàng bắt đầu"}
             {status === "error" && "Gặp sự cố kết nối"}
           </span>
           {lagWarning && (
             <span className="lmr-badge lmr-badge--active">
-              ⚠️ Server đang xử lý chậm
+              Server đang xử lý chậm
             </span>
           )}
         </div>
@@ -177,21 +177,21 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
               ))}
             </div>
           )}
-          <div className="lmr-timer">⏱ {formatTime(duration)}</div>
+          <div className="lmr-timer">{formatTime(duration)}</div>
         </div>
       </div>
 
       {/* Thông báo lỗi nếu có */}
       {(errorMsg || batchError) && (
         <div className="mn-error">
-          ⚠️ {errorMsg || batchError}
+          {errorMsg || batchError}
         </div>
       )}
 
       {/* ── Khung Live Captions (Realtime Streaming) ─────────── */}
       <div className="lmr-caption-box">
         <div className="lmr-caption-header">
-          <span>Phụ đề trực tiếp (Wav2Vec2 Dual-Engine)</span>
+          <span>Phụ đề trực tiếp</span>
           <span>
             {captions.filter((c) => c.isFinal).length} cụm từ đã nhận diện
           </span>
@@ -204,9 +204,9 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
         >
           {captions.length === 0 ? (
             <div className="lmr-caption-empty">
-              <span>🎙️ Nhấn &quot;Bắt đầu cuộc họp&quot; và nói vào micro để thấy phụ đề tức thời.</span>
+              <span>Nhấn &quot;Bắt đầu cuộc họp&quot; và nói vào micro để thấy phụ đề.</span>
               <span style={{ fontSize: 12, opacity: 0.8 }}>
-                (Hệ thống tự động phát hiện giọng nói VAD và cập nhật text mờ interim dưới 1s)
+                (Nội dung phát biểu sẽ hiển thị theo thời gian thực)
               </span>
             </div>
           ) : (
@@ -222,7 +222,7 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
                 <div className="lmr-caption-meta">
                   {item.isFinal ? (
                     <>
-                      <span>● Chính thức</span>
+                      <span>Chính thức</span>
                       {item.tStart !== undefined && (
                         <span>
                           [{item.tStart}s - {item.tEnd}s]
@@ -234,7 +234,7 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
                     </>
                   ) : (
                     <>
-                      <span>✎ Đang nói...</span>
+                      <span>Đang nói...</span>
                       {item.inferMs !== undefined && (
                         <span>({item.inferMs}ms)</span>
                       )}
@@ -256,11 +256,11 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
             onClick={handleStart}
             disabled={status === "connecting" || status === "stopping" || isBatchLoading}
           >
-            ▶ Bắt đầu cuộc họp
+            Bắt đầu cuộc họp
           </button>
         ) : (
           <button className="lmr-btn lmr-btn--stop" onClick={handleStop}>
-            ⏹ Kết thúc họp & Gỡ băng
+            Kết thúc họp & Gỡ băng
           </button>
         )}
 
@@ -270,18 +270,18 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
             onClick={handleExportMarkdown}
             title="Lưu biên bản dạng Markdown"
           >
-            📥 Tải biên bản (.md)
+            Tải biên bản (.md)
           </button>
         )}
       </div>
 
-      {/* ── Loading PhoWhisper & Qwen ───────────────────────── */}
+      {/* ── Loading ─────────────────────────────────────────── */}
       {isBatchLoading && (
         <div className="lmr-batch-loading">
           <div className="mn-spinner" style={{ width: 24, height: 24, borderWidth: 3 }} />
           <div>
             <p style={{ fontWeight: 600, color: "var(--text-h)" }}>
-              Đang gỡ băng chính xác cao (PhoWhisper) & Tóm tắt biên bản (Qwen2.5)...
+              Đang gỡ băng và tạo tóm tắt biên bản...
             </p>
             <p style={{ fontSize: 13, color: "var(--text)", marginTop: 4 }}>
               Vui lòng không tắt hoặc tải lại trang trong giây lát.
@@ -290,18 +290,18 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
         </div>
       )}
 
-      {/* ── View Đối Chiếu 3 Cột (Giai đoạn 3) ────────────────── */}
+      {/* ── View Đối Chiếu 3 Cột ────────────────────────────── */}
       {(batchTranscript || batchSummary) && (
         <div className="lmr-results-panel">
           <div className="lmr-export-actions">
             <div>
-              <strong>Kết quả đối chiếu cuộc họp</strong> — 3 Engine ASR & LLM
+              <strong>Kết quả đối chiếu cuộc họp</strong>
             </div>
             <button
               className="lmr-btn lmr-btn--secondary"
               onClick={handleExportMarkdown}
             >
-              📥 Xuất file .md
+              Xuất file .md
             </button>
           </div>
 
@@ -309,9 +309,9 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
             {/* Cột 1: Live Log */}
             <div className="lmr-column-card">
               <div className="lmr-col-header">
-                <h3>1. Nhật ký Live Stream</h3>
+                <h3>1. Bản ghi trực tiếp</h3>
                 <span className="lmr-col-badge">
-                  Wav2Vec2 CTC • Độ trễ thấp (~30ms)
+                  Thời gian thực
                 </span>
               </div>
               <div className="lmr-col-body">
@@ -334,12 +334,12 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
               </div>
             </div>
 
-            {/* Cột 2: PhoWhisper */}
+            {/* Cột 2: Full transcript */}
             <div className="lmr-column-card">
               <div className="lmr-col-header">
-                <h3>2. Bản gỡ băng chính thức</h3>
+                <h3>2. Bản gỡ băng đầy đủ</h3>
                 <span className="lmr-col-badge">
-                  PhoWhisper-small • Chuẩn dấu & Ngữ cảnh
+                  Đầy đủ & chuẩn hóa
                 </span>
               </div>
               <div className="lmr-col-body">
@@ -347,14 +347,14 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
               </div>
             </div>
 
-            {/* Cột 3: Qwen Summary */}
+            {/* Cột 3: Summary */}
             <div className="lmr-column-card lmr-col-summary">
               <div className="lmr-col-header">
                 <h3 style={{ color: "var(--accent, #3b82f6)" }}>
                   3. Tóm tắt & Phân công
                 </h3>
                 <span className="lmr-col-badge">
-                  Qwen2.5-1.5B-Instruct • Trích xuất quyết định
+                  Biên bản tóm tắt
                 </span>
               </div>
               <div className="lmr-col-body">
