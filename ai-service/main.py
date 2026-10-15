@@ -114,45 +114,156 @@ def run_ctc_inference(pipe, pcm_int16: np.ndarray) -> str:
     return (out.get("text") or "").strip()
 
 
+def _split_text_into_chunks(text: str, max_chars: int = 5000) -> list:
+    """Cắt text theo ranh giới câu để tránh đứt đoạn ngữ nghĩa.
+    Thay vì cắt cứng mỗi N ký tự (có thể chẻ đôi từ/câu), hàm này
+    tìm vị trí dấu câu gần nhất phía trước điểm cắt để giữ nguyên
+    ngữ cảnh cho mô hình LLM tóm tắt chính xác hơn.
+    """
+    if len(text) <= max_chars:
+        return [text]
+
+    chunks = []
+    start = 0
+    while start < len(text):
+        end = start + max_chars
+        if end >= len(text):
+            chunks.append(text[start:])
+            break
+
+        # Tìm vị trí ngắt câu hợp lý (ưu tiên dấu chấm xuống dòng > dấu chấm > dấu hỏi/chấm than > xuống dòng)
+        split_pos = -1
+        for sep in [".\n", ".\r\n", ". ", "? ", "! ", "\n"]:
+            pos = text.rfind(sep, start, end)
+            if pos > split_pos:
+                split_pos = pos + len(sep)
+
+        if split_pos == -1 or split_pos <= start:
+            # Không tìm thấy ngắt câu nào — cắt cứng tại ranh giới khoảng trắng
+            space_pos = text.rfind(" ", start, end)
+            split_pos = space_pos if space_pos > start else end
+
+        chunks.append(text[start:split_pos].strip())
+        start = split_pos
+
+    return [c for c in chunks if c]
+
+
+def _clean_repeated_headers(text: str) -> str:
+    """Xóa các khối tiêu đề bị lặp lại liên tiếp do mô hình sinh suy biến.
+    Ví dụ: '📌 Mục đích cuộc họp:\\n✅ Đánh giá...' lặp đi lặp lại nhiều lần
+    sẽ chỉ giữ lại lần xuất hiện đầu tiên.
+    """
+    import re
+    # Phát hiện khối 4 tiêu đề lặp lại liên tiếp (có thể kèm nội dung rỗng)
+    header_block = (
+        r"(📌 Mục đích cuộc họp:\s*\n?"
+        r"✅ Đánh giá tiến độ & Kết quả đạt được:\s*\n?"
+        r"⚠️ Vấn đề tồn đọng:\s*\n?"
+        r"🎯 Phân công công việc & Thời hạn:\s*\n?)"
+    )
+    # Tìm 2+ lần lặp liên tiếp của khối tiêu đề rỗng
+    pattern = re.compile(header_block + r"{2,}", re.MULTILINE)
+    cleaned = pattern.sub("", text)
+
+    # Nếu sau khi dọn chỉ còn khoảng trắng hoặc rỗng → ghi chú rõ ràng
+    if not cleaned.strip():
+        return "*(Phần này chủ yếu là nghi thức/thủ tục, không có nội dung thảo luận cụ thể)*"
+
+    return cleaned.strip()
+
+
 def run_summarize(llm_model, llm_tokenizer, transcript: str, device: str) -> str:
-    """Tóm tắt biên bản cuộc họp dùng Qwen2.5-1.5B."""
+    """Tóm tắt biên bản cuộc họp dùng Qwen2.5-1.5B với cơ chế chống tràn VRAM (OOM) cho văn bản dài."""
+    if not transcript or not transcript.strip():
+        return "Không có nội dung để tóm tắt."
+
+    # Giải phóng VRAM còn dư từ công đoạn PhoWhisper trước khi nạp LLM
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
     system_prompt = (
         "Bạn là thư ký cuộc họp AI chuyên nghiệp. Nhiệm vụ của bạn là đọc nội dung phiên âm cuộc họp "
         "và tóm tắt lại các ý chính một cách súc tích, chính xác bằng tiếng Việt.\n\n"
         "Quy tắc bắt buộc:\n"
-        "- Tuyệt đối KHÔNG viết lời chào hỏi hoặc kết thư (cấm viết 'Chào các bạn', 'Rất mong mọi người...').\n"
-        "- Chỉ tập trung vào sự thật có trong nội dung, không suy diễn hoặc bịa đặt thêm thông tin.\n"
-        "- Trình bày kết quả rõ ràng theo cấu trúc gạch đầu dòng sau:\n"
-        "Mục đích cuộc họp:\n"
-        "Đánh giá tiến độ & Kết quả đạt được:\n"
-        "Vấn đề tồn đọng:\n"
-        "Phân công công việc & Thời hạn:"
+        "- Tuyệt đối KHÔNG viết lời chào hỏi hoặc kết thư.\n"
+        "- Chỉ tập trung vào sự thật có trong nội dung, KHÔNG suy diễn hoặc bịa đặt thêm thông tin.\n"
+        "- Nếu nội dung chỉ là nghi thức khai mạc, chào cờ, giới thiệu đại biểu mà không có thảo luận cụ thể, "
+        "hãy viết: 'Phần này là nghi thức/thủ tục khai mạc, không có nội dung thảo luận cụ thể.'\n"
+        "- CHỈ trình bày các mục dưới đây NẾU có thông tin liên quan trong nội dung. "
+        "Nếu một mục không có thông tin, BỎ QUA mục đó hoàn toàn, KHÔNG in tiêu đề rỗng.\n"
+        "- KHÔNG được lặp lại cùng một tiêu đề hoặc cụm từ nhiều lần.\n\n"
+        "Cấu trúc (chỉ dùng các mục có thông tin):\n"
+        "📌 Mục đích cuộc họp:\n"
+        "✅ Đánh giá tiến độ & Kết quả đạt được:\n"
+        "⚠️ Vấn đề tồn đọng:\n"
+        "🎯 Phân công công việc & Thời hạn:\n\n"
+        "Cuối cùng, viết một đoạn 'Tóm tắt:' ngắn gọn 2-3 câu khái quát nội dung chính."
     )
 
-    user_prompt = f"Hãy tóm tắt nội dung cuộc họp sau đây theo đúng quy tắc:\n\n{transcript}"
+    # Ngưỡng an toàn cho GPU 6GB: Mỗi chunk tối đa 5.000 ký tự (~1.250 tokens)
+    # Giảm từ 6.000 xuống 5.000 để chừa headroom cho prompt dài hơn
+    MAX_CHARS_PER_CHUNK = 5000
 
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_prompt},
-    ]
+    chunks = _split_text_into_chunks(transcript, MAX_CHARS_PER_CHUNK)
 
-    text = llm_tokenizer.apply_chat_template(
-        messages, tokenize=False, add_generation_prompt=True
-    )
-    inputs = llm_tokenizer([text], return_tensors="pt").to(device)
+    summaries = []
+    print(f"[INFO] Summarizing transcript in {len(chunks)} chunk(s)...")
 
-    with torch.no_grad():
-        outputs = llm_model.generate(
-            **inputs,
-            max_new_tokens=450,
-            temperature=0.1,
-            repetition_penalty=1.1,
-            do_sample=True,
+    for idx, chunk in enumerate(chunks):
+        if len(chunks) > 1:
+            user_prompt = (
+                f"Đây là Phần {idx + 1}/{len(chunks)} của phiên âm cuộc họp.\n"
+                f"Hãy tóm tắt các ý chính có trong phần này. "
+                f"Nếu phần này chỉ là nghi thức/thủ tục, hãy ghi rõ điều đó.\n\n{chunk}"
+            )
+        else:
+            user_prompt = f"Hãy tóm tắt nội dung cuộc họp sau đây theo đúng quy tắc:\n\n{chunk}"
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+
+        text = llm_tokenizer.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
         )
+        inputs = llm_tokenizer([text], return_tensors="pt").to(device)
 
-    generated_ids = outputs[0][inputs.input_ids.shape[1]:]
-    summary = llm_tokenizer.decode(generated_ids, skip_special_tokens=True)
-    return summary.strip()
+        try:
+            with torch.no_grad():
+                outputs = llm_model.generate(
+                    **inputs,
+                    max_new_tokens=450,
+                    temperature=0.3,
+                    repetition_penalty=1.2,
+                    no_repeat_ngram_size=4,
+                    do_sample=True,
+                )
+            generated_ids = outputs[0][inputs.input_ids.shape[1] :]
+            chunk_summary = llm_tokenizer.decode(generated_ids, skip_special_tokens=True).strip()
+
+            # Hậu xử lý: dọn sạch các khối tiêu đề bị lặp lại
+            chunk_summary = _clean_repeated_headers(chunk_summary)
+
+            if len(chunks) > 1:
+                summaries.append(f"### 📋 Tóm tắt phần {idx + 1}/{len(chunks)}:\n{chunk_summary}")
+            else:
+                summaries.append(chunk_summary)
+
+        except torch.cuda.OutOfMemoryError:
+            print(f"[WARN] CUDA OOM at chunk {idx + 1}. Clearing cache...")
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            summaries.append(f"*(Phần {idx + 1} quá dài, đã dọn VRAM tự động để bảo vệ GPU)*")
+
+        finally:
+            # Giải phóng tensor tạm thời sau mỗi chunk
+            del inputs
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+    return "\n\n".join(summaries)
 
 
 # ==========================================
@@ -368,6 +479,12 @@ async def transcribe_audio(file: UploadFile = File(...)):
             )
             transcript = stt_result["text"].strip()
             print(f"[INFO] PhoWhisper done ({len(transcript)} chars). Summarizing...")
+
+            # Giải phóng mảng âm thanh lớn và dọn bộ nhớ đệm CUDA
+            del speech
+            del stt_result
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
             summary = await asyncio.to_thread(
                 run_summarize,
