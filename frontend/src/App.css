@@ -710,3 +710,542 @@ body {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   New Dashboard Layout Styles
+   Sidebar History (Left) + Workspace (Right)
+   ═══════════════════════════════════════════════════════════════ */
+
+.db-app-root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f8fafc;
+  color: #0f172a;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* ── Top Navbar ─── */
+.db-navbar {
+  height: 64px;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.db-brand {
+  cursor: default;
+  user-select: none;
+}
+
+.db-brand-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.db-brand-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #f8fafc;
+  letter-spacing: -0.3px;
+  line-height: 1.2;
+}
+
+.db-brand-sub {
+  font-size: 11.5px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+/* ── Center Mode Tabs ─── */
+.db-tabs {
+  display: flex;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 4px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
+}
+
+.db-tab-btn {
+  padding: 7px 18px;
+  font-size: 13.5px;
+  font-weight: 500;
+  font-family: inherit;
+  border: none;
+  background: transparent;
+  color: #cbd5e1;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.db-tab-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.db-tab-btn.active {
+  background: #ffffff;
+  color: #0f172a;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+/* ── Muted, Harmonious Logout Button ─── */
+.db-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.db-logout-btn {
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.db-logout-btn:hover {
+  background: rgba(239, 68, 68, 0.22);
+  color: #ffffff;
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.db-logout-btn:active {
+  transform: translateY(0);
+}
+
+/* ── Dashboard Body (Two Columns) ─── */
+.db-body {
+  display: flex;
+  flex: 1;
+  height: calc(100vh - 64px);
+  overflow: hidden;
+}
+
+/* ── Left Sidebar: History + Profile ─── */
+.db-sidebar {
+  width: 330px;
+  flex-shrink: 0;
+  background: #ffffff;
+  border-right: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.db-sidebar-header {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.db-sidebar-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.db-sidebar-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.2px;
+}
+
+.db-sidebar-badge {
+  background: #eef2ff;
+  color: #4f46e5;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.db-refresh-btn {
+  padding: 5px 11px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.db-refresh-btn:hover {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+.db-search-box {
+  padding: 12px 18px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.db-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  color: #0f172a;
+  outline: none;
+  transition: all 0.15s;
+}
+
+.db-search-input:focus {
+  background: #ffffff;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.12);
+}
+
+.db-search-input::placeholder {
+  color: #94a3b8;
+}
+
+.db-history-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.db-history-empty {
+  text-align: center;
+  padding: 48px 16px;
+  color: #94a3b8;
+}
+
+.db-empty-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 6px;
+}
+
+.db-empty-desc {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #94a3b8;
+}
+
+.db-history-card {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.db-history-card:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
+}
+
+.db-history-card.active {
+  border-color: #4f46e5;
+  background: #f5f3ff;
+}
+
+.db-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.db-card-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.db-card-status {
+  font-size: 10px;
+  font-weight: 700;
+  color: #059669;
+  background: #ecfdf5;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.3px;
+}
+
+.db-card-meta {
+  font-size: 11.5px;
+  color: #64748b;
+  display: flex;
+  gap: 6px;
+}
+
+.db-card-desc {
+  font-size: 11.5px;
+  color: #94a3b8;
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Taskbar Trái: Avatar & Thông tin người học ─── */
+.db-sidebar-user {
+  padding: 14px 18px;
+  border-top: 1px solid #e2e8f0;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.db-sidebar-user:hover {
+  background: #f8fafc;
+}
+
+.db-user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 1px 4px rgba(79, 70, 229, 0.2);
+  transition: transform 0.15s;
+}
+
+.db-sidebar-user:hover .db-user-avatar {
+  transform: scale(1.05);
+}
+
+.db-user-details {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.db-user-fullname {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.db-user-role {
+  font-size: 11px;
+  color: #64748b;
+}
+
+/* ── Right Main Workspace ─── */
+.db-main-content {
+  flex: 1;
+  height: 100%;
+  overflow-y: auto;
+  padding: 24px 32px;
+  background: #f8fafc;
+  box-sizing: border-box;
+}
+
+.db-workspace-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+/* ── Modal Popups ─── */
+.db-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 20px;
+}
+
+.db-modal-card {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 440px;
+  padding: 28px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e2e8f0;
+  animation: db-scale-up 0.2s ease-out;
+}
+
+@keyframes db-scale-up {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.db-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.db-modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.db-modal-close {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.db-modal-close:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.db-modal-profile {
+  text-align: center;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.db-modal-avatar {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  color: #ffffff;
+  font-size: 24px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+}
+
+.db-modal-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px;
+}
+
+.db-modal-badge {
+  display: inline-block;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #4f46e5;
+  background: #eef2ff;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.db-modal-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.db-modal-field {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13.5px;
+  padding: 8px 10px;
+  background: #f8fafc;
+  border-radius: 8px;
+}
+
+.db-modal-label {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.db-modal-val {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.db-modal-val--online {
+  color: #059669;
+}
+
+.db-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.db-modal-btn {
+  padding: 9px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  background: #4f46e5;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.db-modal-btn:hover {
+  background: #4338ca;
+}
+
