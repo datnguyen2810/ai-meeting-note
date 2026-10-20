@@ -27,7 +27,7 @@ public class Transcript {
     @EqualsAndHashCode.Exclude
     private AudioRecording audioRecording;
 
-    @Column(name = "raw_text", columnDefinition = "LONGTEXT")
+    @Column(name = "raw_text", columnDefinition = "TEXT")
     private String rawText;
 
     @Column(name = "stt_model_used", length = 100)

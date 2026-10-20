@@ -34,7 +34,7 @@ public class MeetingNote {
     private Transcript transcript;
 
     // Tóm tắt do AI sinh ra (hoặc toàn bộ transcript)
-    @Column(name = "summary_text", columnDefinition = "LONGTEXT")
+    @Column(name = "summary_text", columnDefinition = "TEXT")
     private String summaryText;
 
     // Các điểm chính (lưu dạng JSON string đơn giản)

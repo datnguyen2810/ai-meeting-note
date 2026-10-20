@@ -95,7 +95,7 @@ app = FastAPI(title="AI Meeting Note Service - Realtime Hybrid ASR", lifespan=li
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -161,11 +161,14 @@ def run_summarize(llm_model, llm_tokenizer, transcript: str, device: str) -> str
 @app.websocket("/ws/live-stream")
 async def websocket_live_stream(websocket: WebSocket):
     # (a) Kiểm tra Origin nếu kết nối từ browser
+    # Cho phép tất cả origin khi deploy qua Cloudflare Tunnel
     origin = websocket.headers.get("origin")
     allowed_origins = {"http://localhost:5173", "http://127.0.0.1:5173"}
     if origin and origin not in allowed_origins:
-        await websocket.close(code=1008)
-        return
+        # Cho phép các origin từ trycloudflare.com tunnel
+        if not origin.endswith(".trycloudflare.com") and not origin.startswith("https://"):
+            await websocket.close(code=1008)
+            return
 
     await websocket.accept()
 
