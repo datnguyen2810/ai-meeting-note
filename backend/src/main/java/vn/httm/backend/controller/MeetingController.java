@@ -30,6 +30,20 @@ public class MeetingController {
         return ResponseEntity.ok(ApiResponse.ok("Đã tạo cuộc họp", response));
     }
 
+    @PostMapping(value = "/save-session", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<MeetingResponse>> saveSession(
+            @RequestParam(value = "title", required = false) String title,
+            @RequestParam(value = "description", required = false) String description,
+            @RequestParam(value = "transcript", required = false) String transcript,
+            @RequestParam(value = "summary", required = false) String summary,
+            @RequestParam(value = "durationSeconds", required = false) Integer durationSeconds,
+            @RequestParam(value = "file", required = false) org.springframework.web.multipart.MultipartFile file,
+            @AuthenticationPrincipal UserDetails userDetails) throws java.io.IOException {
+        MeetingResponse response = meetingService.saveMeetingSession(
+                title, description, transcript, summary, durationSeconds, file, userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponse.ok("Đã lưu lịch sử cuộc họp thành công", response));
+    }
+
     @GetMapping
     public ResponseEntity<ApiResponse<List<MeetingResponse>>> getMyMeetings(
             @AuthenticationPrincipal UserDetails userDetails) {

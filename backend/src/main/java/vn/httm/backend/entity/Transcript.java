@@ -22,7 +22,7 @@ public class Transcript {
     private Long id;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "audio_recording_id", unique = true, nullable = false)
+    @JoinColumn(name = "audio_recording_id", unique = true, nullable = true)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private AudioRecording audioRecording;

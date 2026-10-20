@@ -1,12 +1,15 @@
 import { useState, useRef } from "react";
+import { api } from "../services/api";
 import "./MeetingNote.css";
 
-export default function SpeechToTextDemo() {
+export default function SpeechToTextDemo({ onMeetingSaved }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [transcript, setTranscript]     = useState("");
   const [summary, setSummary]           = useState("");
   const [isLoading, setIsLoading]       = useState(false);
   const [error, setError]               = useState("");
+  const [saveStatus, setSaveStatus]     = useState(""); // "", "saving", "saved", "error"
+  const [savedMeetingInfo, setSavedMeetingInfo] = useState(null);
   const inputRef = useRef(null);
 
   const handleFileChange = (e) => {
@@ -15,6 +18,8 @@ export default function SpeechToTextDemo() {
     setTranscript("");
     setSummary("");
     setError("");
+    setSaveStatus("");
+    setSavedMeetingInfo(null);
   };
 
   const handleUpload = async () => {
@@ -26,6 +31,9 @@ export default function SpeechToTextDemo() {
     setError("");
     setTranscript("");
     setSummary("");
+    setSaveStatus("");
+    setSavedMeetingInfo(null);
+
     try {
       const formData = new FormData();
       formData.append("file", selectedFile);
@@ -43,8 +51,30 @@ export default function SpeechToTextDemo() {
       }
       const data = await response.json();
       if (data?.status === "success" && data?.transcript !== undefined) {
-        setTranscript(data.transcript);
-        setSummary(data.summary || "");
+        const finalTranscript = data.transcript;
+        const finalSummary = data.summary || "";
+        setTranscript(finalTranscript);
+        setSummary(finalSummary);
+
+        // Tự động lưu kết quả vào backend Spring Boot
+        try {
+          setSaveStatus("saving");
+          const meetingTitle = `Tệp âm thanh: ${selectedFile.name}`;
+          const saved = await api.saveMeetingSession({
+            title: meetingTitle,
+            transcript: finalTranscript,
+            summary: finalSummary,
+            file: selectedFile,
+          });
+          setSaveStatus("saved");
+          setSavedMeetingInfo(saved);
+          if (typeof onMeetingSaved === "function") {
+            onMeetingSaved();
+          }
+        } catch (saveErr) {
+          console.error("[Save Session Error]:", saveErr);
+          setSaveStatus("error");
+        }
       } else {
         throw new Error("Phản hồi không hợp lệ từ API.");
       }
@@ -57,6 +87,31 @@ export default function SpeechToTextDemo() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleExportMarkdown = () => {
+    const now = new Date().toLocaleString("vi-VN");
+    const mdContent = `# BIÊN BẢN TỔNG KẾT TỪ TỆP GHI ÂM
+*Tên tệp:* ${selectedFile?.name || "audio.wav"}
+*Thời gian lập:* ${now}
+
+---
+
+## 1. TÓM TẮT & PHÂN CÔNG CÔNG VIỆC (Qwen2.5-1.5B)
+${summary || "_Chưa có bản tóm tắt._"}
+
+---
+
+## 2. NỘI DUNG CUỘC HỌP ĐẦY ĐỦ (PhoWhisper-small)
+${transcript || "_Chưa có nội dung cuộc họp chi tiết._"}
+`;
+    const blob = new Blob([mdContent], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `Bien_ban_${selectedFile?.name ? selectedFile.name.replace(/\.[^/.]+$/, "") : Date.now()}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const isButtonDisabled = isLoading || !selectedFile;
@@ -106,7 +161,7 @@ export default function SpeechToTextDemo() {
           disabled={isButtonDisabled}
         >
           {isLoading ? <span className="mn-spinner" /> : null}
-          {isLoading ? "Đang xử lý..." : "Bắt đầu nhận diện"}
+          {isLoading ? "Đang tóm tắt cuộc họp..." : "Tóm tắt cuộc họp"}
         </button>
 
         {/* Error */}
@@ -115,6 +170,44 @@ export default function SpeechToTextDemo() {
         {/* Results */}
         {(transcript || isLoading) && (
           <div className="mn-results">
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {saveStatus === "saving" && (
+                  <span style={{ fontSize: 13, color: "#0284c7", background: "#e0f2fe", padding: "4px 10px", borderRadius: 6, fontWeight: 500 }}>
+                    Đang lưu kết quả vào lịch sử cuộc họp...
+                  </span>
+                )}
+                {saveStatus === "saved" && (
+                  <span style={{ fontSize: 13, color: "#166534", background: "#dcfce7", padding: "4px 10px", borderRadius: 6, fontWeight: 500 }}>
+                    ✓ Đã lưu thành công vào Lịch sử cuộc họp {savedMeetingInfo?.id ? `(#${savedMeetingInfo.id})` : ""}
+                  </span>
+                )}
+                {saveStatus === "error" && (
+                  <span style={{ fontSize: 13, color: "#b91c1c", background: "#fee2e2", padding: "4px 10px", borderRadius: 6, fontWeight: 500 }}>
+                    Chưa lưu vào CSDL
+                  </span>
+                )}
+              </div>
+              {transcript && (
+                <button
+                  type="button"
+                  onClick={handleExportMarkdown}
+                  style={{
+                    padding: "6px 14px",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    background: "#f1f5f9",
+                    color: "#334155",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: 6,
+                    cursor: "pointer"
+                  }}
+                >
+                  Tải biên bản (.md)
+                </button>
+              )}
+            </div>
+
             <div className="mn-result-block">
               <p className="mn-result-label">Phiên âm</p>
               <div className="mn-result-content">

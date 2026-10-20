@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { useLiveTranscription } from "../hooks/useLiveTranscription";
+import { api } from "../services/api";
 import "./LiveMeetingRoom.css";
 
-export default function LiveMeetingRoom() {
+export default function LiveMeetingRoom({ onMeetingSaved }) {
   const {
     status,
     isRecording,
@@ -20,6 +21,8 @@ export default function LiveMeetingRoom() {
   const [batchSummary, setBatchSummary] = useState("");
   const [batchError, setBatchError] = useState("");
   const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
+  const [saveStatus, setSaveStatus] = useState(""); // "", "saving", "saved", "error"
+  const [savedMeetingInfo, setSavedMeetingInfo] = useState(null);
 
   const scrollRef = useRef(null);
 
@@ -53,6 +56,8 @@ export default function LiveMeetingRoom() {
     setBatchTranscript("");
     setBatchSummary("");
     setBatchError("");
+    setSaveStatus("");
+    setSavedMeetingInfo(null);
     await startRecording();
   };
 
@@ -83,13 +88,78 @@ export default function LiveMeetingRoom() {
       }
 
       const data = await res.json();
-      setBatchTranscript(data.transcript || "");
-      setBatchSummary(data.summary || "");
+      const finalTranscript = data.transcript || "";
+      const finalSummary = data.summary || "";
+      setBatchTranscript(finalTranscript);
+      setBatchSummary(finalSummary);
+
+      // Tự động lưu cuộc họp và tóm tắt vào database qua Spring Boot backend
+      try {
+        setSaveStatus("saving");
+        const meetingTitle = `Cuộc họp trực tiếp - ${new Date().toLocaleString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        })}`;
+
+        const audioFile = new File([result.wavBlob], `meeting_${Date.now()}.wav`, {
+          type: "audio/wav",
+        });
+
+        const saved = await api.saveMeetingSession({
+          title: meetingTitle,
+          transcript: finalTranscript,
+          summary: finalSummary,
+          durationSeconds: duration,
+          file: audioFile,
+        });
+
+        setSaveStatus("saved");
+        setSavedMeetingInfo(saved);
+        if (typeof onMeetingSaved === "function") {
+          onMeetingSaved();
+        }
+      } catch (saveErr) {
+        console.error("[Save Session Error]:", saveErr);
+        setSaveStatus("error");
+      }
     } catch (err) {
       console.error("[Batch Error]:", err);
-      setBatchError(err.message || "Gặp lỗi trong quá trình gỡ băng chính thức.");
+      setBatchError(err.message || "Gặp lỗi trong quá trình tổng hợp và tóm tắt cuộc họp.");
     } finally {
       setIsBatchLoading(false);
+    }
+  };
+
+  const handleManualSave = async () => {
+    if (!batchTranscript && !batchSummary) return;
+    try {
+      setSaveStatus("saving");
+      const meetingTitle = `Cuộc họp trực tiếp - ${new Date().toLocaleString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      })}`;
+
+      const saved = await api.saveMeetingSession({
+        title: meetingTitle,
+        transcript: batchTranscript,
+        summary: batchSummary,
+        durationSeconds: duration,
+      });
+
+      setSaveStatus("saved");
+      setSavedMeetingInfo(saved);
+      if (typeof onMeetingSaved === "function") {
+        onMeetingSaved();
+      }
+    } catch (saveErr) {
+      console.error("[Manual Save Error]:", saveErr);
+      setSaveStatus("error");
     }
   };
 
@@ -116,8 +186,8 @@ ${batchSummary || "_Chưa có bản tóm tắt._"}
 
 ---
 
-## 2. BẢN GỠ BĂNG CHÍNH THỨC (PhoWhisper-small)
-${batchTranscript || "_Chưa có bản gỡ băng chính thức._"}
+## 2. NỘI DUNG CUỘC HỌP ĐẦY ĐỦ (PhoWhisper-small)
+${batchTranscript || "_Chưa có nội dung cuộc họp chi tiết._"}
 
 ---
 
@@ -260,7 +330,7 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
           </button>
         ) : (
           <button className="lmr-btn lmr-btn--stop" onClick={handleStop}>
-            Kết thúc họp & Gỡ băng
+            Kết thúc cuộc họp
           </button>
         )}
 
@@ -281,7 +351,7 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
           <div className="mn-spinner" style={{ width: 24, height: 24, borderWidth: 3 }} />
           <div>
             <p style={{ fontWeight: 600, color: "var(--text-h)" }}>
-              Đang gỡ băng và tạo tóm tắt biên bản...
+              Đang tổng hợp và tóm tắt cuộc họp...
             </p>
             <p style={{ fontSize: 13, color: "var(--text)", marginTop: 4 }}>
               Vui lòng không tắt hoặc tải lại trang trong giây lát.
@@ -294,8 +364,33 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
       {(batchTranscript || batchSummary) && (
         <div className="lmr-results-panel">
           <div className="lmr-export-actions">
-            <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <strong>Kết quả đối chiếu cuộc họp</strong>
+              {saveStatus === "saving" && (
+                <span className="lmr-col-badge" style={{ background: "#e0f2fe", color: "#0284c7" }}>
+                  Đang lưu vào lịch sử...
+                </span>
+              )}
+              {saveStatus === "saved" && (
+                <span className="lmr-col-badge" style={{ background: "#dcfce7", color: "#166534" }}>
+                  ✓ Đã lưu vào lịch sử cuộc họp{savedMeetingInfo?.id ? ` (#${savedMeetingInfo.id})` : ""}
+                </span>
+              )}
+              {saveStatus === "error" && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span className="lmr-col-badge" style={{ background: "#fee2e2", color: "#b91c1c" }}>
+                    Chưa lưu vào DB
+                  </span>
+                  <button
+                    type="button"
+                    className="lmr-btn lmr-btn--secondary"
+                    style={{ padding: "3px 10px", fontSize: 12, height: "auto" }}
+                    onClick={handleManualSave}
+                  >
+                    Thử lưu lại
+                  </button>
+                </div>
+              )}
             </div>
             <button
               className="lmr-btn lmr-btn--secondary"
@@ -337,7 +432,7 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
             {/* Cột 2: Full transcript */}
             <div className="lmr-column-card">
               <div className="lmr-col-header">
-                <h3>2. Bản gỡ băng đầy đủ</h3>
+                <h3>2. Nội dung cuộc họp chi tiết</h3>
                 <span className="lmr-col-badge">
                   Đầy đủ & chuẩn hóa
                 </span>

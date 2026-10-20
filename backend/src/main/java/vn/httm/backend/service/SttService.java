@@ -102,9 +102,10 @@ public class SttService {
     }
 
     private TranscriptResponse toResponse(Transcript t) {
+        Long audioId = (t.getAudioRecording() != null) ? t.getAudioRecording().getId() : null;
         return TranscriptResponse.builder()
             .id(t.getId())
-            .audioRecordingId(t.getAudioRecording().getId())
+            .audioRecordingId(audioId)
             .rawText(t.getRawText())
             .sttModelUsed(t.getSttModelUsed())
             .processingTimeSeconds(t.getProcessingTimeSeconds())

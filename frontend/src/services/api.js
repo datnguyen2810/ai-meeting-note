@@ -114,6 +114,32 @@ export const api = {
     return res.data;
   },
 
+  // Save complete meeting session (audio, transcript, summary)
+  async saveMeetingSession({ title, description, transcript, summary, durationSeconds, file }) {
+    const formData = new FormData();
+    if (title) formData.append("title", title);
+    if (description) formData.append("description", description);
+    if (transcript) formData.append("transcript", transcript);
+    if (summary) formData.append("summary", summary);
+    if (durationSeconds !== undefined && durationSeconds !== null) {
+      formData.append("durationSeconds", durationSeconds);
+    }
+    if (file) formData.append("file", file);
+
+    const res = await request("/meetings/save-session", {
+      method: "POST",
+      body: formData,
+    });
+    return res.data;
+  },
+
+  async deleteMeeting(id) {
+    const res = await request(`/meetings/${id}`, {
+      method: "DELETE",
+    });
+    return res.data;
+  },
+
   // Audio Upload
   async uploadAudio(meetingId, file) {
     const formData = new FormData();

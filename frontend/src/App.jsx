@@ -24,6 +24,7 @@ export default function App() {
   const [selectedMeeting, setSelectedMeeting] = useState(null);
   const [showUserModal, setShowUserModal] = useState(false);
   const [authMode, setAuthMode] = useState("login");
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
   // If already logged in, go straight to dashboard
   useEffect(() => {
@@ -51,6 +52,61 @@ export default function App() {
     } catch (err) {
       console.warn("Could not load meetings:", err.message);
     }
+  };
+
+  const handleSelectMeeting = async (m) => {
+    setSelectedMeeting(m);
+    setLoadingDetail(true);
+    try {
+      const full = await api.getMeeting(m.id);
+      if (full) {
+        setSelectedMeeting(full);
+      }
+    } catch (err) {
+      console.warn("Could not load meeting detail:", err);
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
+  const handleDeleteMeeting = async (id) => {
+    if (!window.confirm("Bạn có chắc chắn muốn xóa cuộc họp này khỏi lịch sử không?")) {
+      return;
+    }
+    try {
+      await api.deleteMeeting(id);
+      setSelectedMeeting(null);
+      loadMeetings();
+    } catch (err) {
+      alert("Lỗi khi xóa cuộc họp: " + err.message);
+    }
+  };
+
+  const handleDownloadMeetingMd = (m) => {
+    const title = m.title || `Cuoc_hop_${m.id}`;
+    const time = m.createdAt ? new Date(m.createdAt).toLocaleString("vi-VN") : "";
+    const content = `# ${m.title || `CUỘC HỌP #${m.id}`}
+*Thời gian:* ${time}
+*Mã cuộc họp:* #${m.id}
+*Người tạo:* ${m.organizerName || user?.fullName || "Bạn"}
+
+---
+
+## 1. TÓM TẮT & PHÂN CÔNG CÔNG VIỆC
+${m.summary || "_Chưa có nội dung tóm tắt._"}
+
+---
+
+## 2. NỘI DUNG CUỘC HỌP ĐẦY ĐỦ
+${m.transcript || "_Chưa có nội dung cuộc họp chi tiết._"}
+`;
+    const blob = new Blob([content], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${title.replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1EA0-\u1EF9]/g, "_")}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleLoginSuccess = (userData) => {
@@ -184,7 +240,7 @@ export default function App() {
                 <div
                   key={m.id}
                   className={`db-history-card ${selectedMeeting?.id === m.id ? "active" : ""}`}
-                  onClick={() => setSelectedMeeting(m)}
+                  onClick={() => handleSelectMeeting(m)}
                 >
                   <div className="db-card-header">
                     <span className="db-card-title">{m.title || `Cuộc họp #${m.id}`}</span>
@@ -233,8 +289,8 @@ export default function App() {
         {/* Cột phải: Khu vực làm việc chính (2 chức năng) */}
         <main className="db-main-content">
           <div className="db-workspace-card">
-            {activeTab === "live" && <LiveMeetingRoom />}
-            {activeTab === "upload" && <SpeechToTextDemo />}
+            {activeTab === "live" && <LiveMeetingRoom onMeetingSaved={loadMeetings} />}
+            {activeTab === "upload" && <SpeechToTextDemo onMeetingSaved={loadMeetings} />}
           </div>
         </main>
       </div>
@@ -303,9 +359,20 @@ export default function App() {
       {/* ── Modal: Chi tiết cuộc họp khi click item lịch sử ─── */}
       {selectedMeeting && (
         <div className="db-modal-overlay" onClick={() => setSelectedMeeting(null)}>
-          <div className="db-modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="db-modal-header">
-              <h3 className="db-modal-title">Chi tiết cuộc họp</h3>
+          <div
+            className="db-modal-card db-modal-card--lg"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 880, maxHeight: "90vh", display: "flex", flexDirection: "column" }}
+          >
+            <div className="db-modal-header" style={{ marginBottom: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <h3 className="db-modal-title" style={{ fontSize: 19 }}>
+                  {selectedMeeting.title || `Cuộc họp #${selectedMeeting.id}`}
+                </h3>
+                <span className="lmr-col-badge" style={{ background: "#dcfce7", color: "#166534" }}>
+                  {selectedMeeting.status || "COMPLETED"}
+                </span>
+              </div>
               <button
                 type="button"
                 className="db-modal-close"
@@ -315,50 +382,142 @@ export default function App() {
               </button>
             </div>
 
-            <div className="db-modal-fields">
-              <div className="db-modal-field">
-                <span className="db-modal-label">Tiêu đề cuộc họp</span>
-                <span className="db-modal-val" style={{ fontWeight: 700 }}>
-                  {selectedMeeting.title || `Cuộc họp #${selectedMeeting.id}`}
-                </span>
-              </div>
-              <div className="db-modal-field">
-                <span className="db-modal-label">Mã cuộc họp</span>
-                <span className="db-modal-val">#{selectedMeeting.id}</span>
-              </div>
-              <div className="db-modal-field">
-                <span className="db-modal-label">Người tạo</span>
-                <span className="db-modal-val">
-                  {selectedMeeting.organizerName || user?.fullName || "Bạn"}
-                </span>
-              </div>
-              <div className="db-modal-field">
-                <span className="db-modal-label">Thời gian tạo</span>
-                <span className="db-modal-val">
+            {/* Sub-bar thông tin và các nút xuất / xóa */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                background: "#f8fafc",
+                padding: "8px 12px",
+                borderRadius: 8,
+                marginBottom: 14,
+                fontSize: 13,
+                color: "#64748b",
+                flexWrap: "wrap",
+                gap: 8,
+              }}
+            >
+              <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
+                <span>
+                  <strong>Thời gian:</strong>{" "}
                   {selectedMeeting.createdAt
                     ? new Date(selectedMeeting.createdAt).toLocaleString("vi-VN")
                     : "—"}
                 </span>
+                <span>
+                  <strong>Người tạo:</strong> {selectedMeeting.organizerName || user?.fullName || "Bạn"}
+                </span>
+                <span>
+                  <strong>Mã:</strong> #{selectedMeeting.id}
+                </span>
               </div>
-              <div className="db-modal-field">
-                <span className="db-modal-label">Số file ghi âm</span>
-                <span className="db-modal-val">{selectedMeeting.audioCount || 0} tệp</span>
+
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => handleDownloadMeetingMd(selectedMeeting)}
+                  style={{
+                    padding: "5px 12px",
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    background: "#ffffff",
+                    color: "#3b82f6",
+                    border: "1px solid #bfdbfe",
+                    borderRadius: 6,
+                    cursor: "pointer",
+                  }}
+                >
+                  Tải biên bản (.md)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteMeeting(selectedMeeting.id)}
+                  style={{
+                    padding: "5px 12px",
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    background: "#ffffff",
+                    color: "#ef4444",
+                    border: "1px solid #fecaca",
+                    borderRadius: 6,
+                    cursor: "pointer",
+                  }}
+                >
+                  Xóa
+                </button>
               </div>
-              <div className="db-modal-field">
-                <span className="db-modal-label">Trạng thái</span>
-                <span className="db-modal-val">{selectedMeeting.status || "SCHEDULED"}</span>
-              </div>
-              {selectedMeeting.description && (
-                <div className="db-modal-field" style={{ flexDirection: "column", gap: 4 }}>
-                  <span className="db-modal-label">Mô tả cuộc họp</span>
-                  <p className="db-modal-val" style={{ margin: 0, color: "#475569" }}>
-                    {selectedMeeting.description}
-                  </p>
+            </div>
+
+            {/* Nội dung chi tiết: 2 Cột (Tóm tắt & Phiên âm) */}
+            <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 14 }}>
+              {loadingDetail ? (
+                <div style={{ textAlign: "center", padding: 30, color: "#64748b" }}>
+                  <div className="mn-spinner" style={{ margin: "0 auto 10px", width: 22, height: 22 }} />
+                  Đang tải nội dung tóm tắt cuộc họp...
+                </div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, minHeight: 280 }}>
+                  {/* Cột Tóm tắt */}
+                  <div
+                    style={{
+                      border: "1px solid #f3e8ff",
+                      borderRadius: 10,
+                      padding: 14,
+                      background: "#faf5ff",
+                      display: "flex",
+                      flexDirection: "column",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, borderBottom: "1px solid #f3e8ff", paddingBottom: 6 }}>
+                      <strong style={{ color: "#7c3aed", fontSize: 14.5 }}>
+                        Tóm tắt & Phân công công việc
+                      </strong>
+                      <span style={{ fontSize: 11, background: "#f3e8ff", color: "#6b21a8", padding: "2px 8px", borderRadius: 4, fontWeight: 600 }}>
+                        AI Qwen2.5
+                      </span>
+                    </div>
+                    <div style={{ flex: 1, overflowY: "auto", fontSize: 13, lineHeight: 1.6, color: "#1e293b", whiteSpace: "pre-wrap", maxHeight: 380 }}>
+                      {selectedMeeting.summary || (
+                        <span style={{ color: "#94a3b8", fontStyle: "italic" }}>
+                          Chưa có bản tóm tắt cho cuộc họp này.
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Cột Nội dung chi tiết */}
+                  <div
+                    style={{
+                      border: "1px solid #e2e8f0",
+                      borderRadius: 10,
+                      padding: 14,
+                      background: "#f8fafc",
+                      display: "flex",
+                      flexDirection: "column",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, borderBottom: "1px solid #e2e8f0", paddingBottom: 6 }}>
+                      <strong style={{ color: "#0f172a", fontSize: 14.5 }}>
+                        Nội dung cuộc họp chi tiết (Transcript)
+                      </strong>
+                      <span style={{ fontSize: 11, background: "#e2e8f0", color: "#475569", padding: "2px 8px", borderRadius: 4, fontWeight: 600 }}>
+                        PhoWhisper
+                      </span>
+                    </div>
+                    <div style={{ flex: 1, overflowY: "auto", fontSize: 13, lineHeight: 1.6, color: "#334155", whiteSpace: "pre-wrap", maxHeight: 380 }}>
+                      {selectedMeeting.transcript || (
+                        <span style={{ color: "#94a3b8", fontStyle: "italic" }}>
+                          Chưa có nội dung phiên âm cho cuộc họp này.
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
 
-            <div className="db-modal-actions">
+            <div className="db-modal-actions" style={{ marginTop: 14, borderTop: "1px solid #f1f5f9", paddingTop: 12 }}>
               <button
                 type="button"
                 className="db-modal-btn"

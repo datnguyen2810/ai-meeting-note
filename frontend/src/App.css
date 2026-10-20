@@ -1122,6 +1122,20 @@ body {
   animation: db-scale-up 0.2s ease-out;
 }
 
+.db-modal-card--lg {
+  max-width: 880px !important;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 768px) {
+  .db-modal-card--lg {
+    max-width: 95vw !important;
+    padding: 18px;
+  }
+}
+
 @keyframes db-scale-up {
   from { opacity: 0; transform: scale(0.96); }
   to { opacity: 1; transform: scale(1); }
