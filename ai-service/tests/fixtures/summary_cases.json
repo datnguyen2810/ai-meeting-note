@@ -1,0 +1,55 @@
+[
+  {
+    "id": "customer_service",
+    "transcript": "xin chào tất cả mọi người hôm nay chúng ta họp nhanh để đánh giá tình hình làm việc trong tuần qua và triển khai kế hoạch cho tuần tới nhìn chung tiến độ công việc của nhóm diễn ra rất tốt và đã hoàn thành vượt chỉ tiêu đề ra tuy nhiên không chăm sóc khách hàng vẫn còn một số phản hồi chưa hài lòng vì tốc độ phản hồi tin nhắn còn chậm nhóm thống nhất anh kiên sẽ kiểm tra lại toàn bộ quy trình chăm sóc khách hàng và đưa ra giải pháp khắc phục trước ngày thứ tuần này anh hiếu sẽ chuẩn bị bàn báo cáo số liệu tổng kết để gửi cho ban giám đốc trước ngày hai mươi lăm cuộc họp hôm nay kết thúc tại đây xin cám ơn mọi người.",
+    "required": ["tin nhắn", "anh kiên", "anh hiếu", "hai mươi lăm"],
+    "forbidden": ["email", "cuối năm", "nhân viên quản lý"],
+    "actions": [
+      {"assignee": "anh kiên", "task": "kiểm tra lại toàn bộ quy trình chăm sóc khách hàng và đưa ra giải pháp khắc phục", "deadline_text": "trước ngày thứ tuần này", "evidence": "anh kiên sẽ kiểm tra lại toàn bộ quy trình chăm sóc khách hàng và đưa ra giải pháp khắc phục trước ngày thứ tuần này", "needs_confirmation": true},
+      {"assignee": "anh hiếu", "task": "chuẩn bị bàn báo cáo số liệu tổng kết để gửi cho ban giám đốc", "deadline_text": "trước ngày hai mươi lăm", "evidence": "anh hiếu sẽ chuẩn bị bàn báo cáo số liệu tổng kết để gửi cho ban giám đốc trước ngày hai mươi lăm", "needs_confirmation": false}
+    ]
+  },
+  {
+    "id": "project_review",
+    "transcript": "xin chào mọi người hôm nay chúng ta họp nhanh để ra sát tìm đến độ dự án tuần này nhìn chung tiến độ thát triển giao diễn của nhóm diễn ra rất tốt tuy nhiên phần kết nối và máy chủ vẫn còn bị chậm và đôi lúc gặp lỗi nhất anh nam sẽ kiểm tra lại đường chuyền lợi trước ngày thứ sáu tuần này còn chị lan sẽ chuẩn bị slide báo cáo để gửi cho ban giám đốc trước ngày hai tháng tháng chín cuộc họp của chúng ta kết thúc tại đây cám ơn mọi người.",
+    "required": ["máy chủ", "anh nam", "chị lan", "thứ sáu tuần này", "hai tháng tháng chín"],
+    "forbidden": ["15/9", "28/9", "hai mươi tám", "lưu lượng"],
+    "actions": [
+      {"assignee": "anh nam", "task": "kiểm tra lại đường chuyền lợi", "deadline_text": "trước ngày thứ sáu tuần này", "evidence": "anh nam sẽ kiểm tra lại đường chuyền lợi trước ngày thứ sáu tuần này", "needs_confirmation": true},
+      {"assignee": "chị lan", "task": "chuẩn bị slide báo cáo để gửi cho ban giám đốc", "deadline_text": "trước ngày hai tháng tháng chín", "evidence": "chị lan sẽ chuẩn bị slide báo cáo để gửi cho ban giám đốc trước ngày hai tháng tháng chín", "needs_confirmation": true}
+    ]
+  },
+  {
+    "id": "missing_owner",
+    "transcript": "Cần kiểm tra máy chủ. Chưa phân công người phụ trách và chưa chốt thời hạn.",
+    "required": ["kiểm tra máy chủ"],
+    "forbidden": ["anh nam", "ngày mai"],
+    "actions": [
+      {"assignee": null, "task": "kiểm tra máy chủ", "deadline_text": null, "evidence": "Cần kiểm tra máy chủ", "needs_confirmation": false}
+    ]
+  },
+  {
+    "id": "greeting_only",
+    "transcript": "Xin chào mọi người. Cảm ơn mọi người đã tham dự. Xin kết thúc tại đây.",
+    "required": [],
+    "forbidden": ["hoàn thành vượt chỉ tiêu", "anh nam", "### Phân công công việc", "Thời hạn theo phiên âm"],
+    "actions": []
+  },
+  {
+    "id": "no_actions",
+    "transcript": "Nhóm đã hoàn thành giao diện. Máy chủ vẫn chậm. Hôm nay chưa đưa ra quyết định hay phân công công việc.",
+    "required": ["hoàn thành giao diện", "máy chủ"],
+    "forbidden": ["ngày mai", "anh nam"],
+    "actions": []
+  },
+  {
+    "id": "conflicting_deadlines",
+    "transcript": "Anh Nam sẽ kiểm tra máy chủ trước thứ sáu. Anh Nam sẽ kiểm tra máy chủ trước thứ hai. Chưa thống nhất thời hạn.",
+    "required": ["thứ sáu", "thứ hai"],
+    "forbidden": ["15/9"],
+    "actions": [
+      {"assignee": "Anh Nam", "task": "kiểm tra máy chủ", "deadline_text": "trước thứ sáu", "evidence": "Anh Nam sẽ kiểm tra máy chủ trước thứ sáu", "needs_confirmation": true},
+      {"assignee": "Anh Nam", "task": "kiểm tra máy chủ", "deadline_text": "trước thứ hai", "evidence": "Anh Nam sẽ kiểm tra máy chủ trước thứ hai", "needs_confirmation": true}
+    ]
+  }
+]

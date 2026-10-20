@@ -25,6 +25,7 @@ from vad_buffer import (
     SAMPLE_RATE,
 )
 import ws_protocol as proto
+from summarization import run_summarize
 
 # ==========================================
 # 1. Quản lý vòng đời Lifespan & nạp model
@@ -114,47 +115,6 @@ def run_ctc_inference(pipe, pcm_int16: np.ndarray) -> str:
     return (out.get("text") or "").strip()
 
 
-def run_summarize(llm_model, llm_tokenizer, transcript: str, device: str) -> str:
-    """Tóm tắt biên bản cuộc họp dùng Qwen2.5-1.5B."""
-    system_prompt = (
-        "Bạn là thư ký cuộc họp AI chuyên nghiệp. Nhiệm vụ của bạn là đọc nội dung phiên âm cuộc họp "
-        "và tóm tắt lại các ý chính một cách súc tích, chính xác bằng tiếng Việt.\n\n"
-        "Quy tắc bắt buộc:\n"
-        "- Tuyệt đối KHÔNG viết lời chào hỏi hoặc kết thư (cấm viết 'Chào các bạn', 'Rất mong mọi người...').\n"
-        "- Chỉ tập trung vào sự thật có trong nội dung, không suy diễn hoặc bịa đặt thêm thông tin.\n"
-        "- Trình bày kết quả rõ ràng theo cấu trúc gạch đầu dòng sau:\n"
-        "Mục đích cuộc họp:\n"
-        "Đánh giá tiến độ & Kết quả đạt được:\n"
-        "Vấn đề tồn đọng:\n"
-        "Phân công công việc & Thời hạn:"
-    )
-
-    user_prompt = f"Hãy tóm tắt nội dung cuộc họp sau đây theo đúng quy tắc:\n\n{transcript}"
-
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_prompt},
-    ]
-
-    text = llm_tokenizer.apply_chat_template(
-        messages, tokenize=False, add_generation_prompt=True
-    )
-    inputs = llm_tokenizer([text], return_tensors="pt").to(device)
-
-    with torch.no_grad():
-        outputs = llm_model.generate(
-            **inputs,
-            max_new_tokens=450,
-            temperature=0.1,
-            repetition_penalty=1.1,
-            do_sample=True,
-        )
-
-    generated_ids = outputs[0][inputs.input_ids.shape[1]:]
-    summary = llm_tokenizer.decode(generated_ids, skip_special_tokens=True)
-    return summary.strip()
-
-
 # ==========================================
 # 4. WebSocket: Realtime Streaming ASR
 # ==========================================
@@ -240,7 +200,7 @@ async def websocket_live_stream(websocket: WebSocket):
 
             if "bytes" in message and message["bytes"]:
                 raw_bytes = message["bytes"]
-                # Chunk từ client có thể gồm nhiều frame (ví dụ 10 frame = 3200 bytes)
+                # Chunk từ client có thể gồm nhiều frame (10 frame = 6400 bytes).
                 for offset in range(0, len(raw_bytes), FRAME_BYTES):
                     frame = raw_bytes[offset:offset + FRAME_BYTES]
                     if len(frame) < FRAME_BYTES:
@@ -368,6 +328,12 @@ async def transcribe_audio(file: UploadFile = File(...)):
             )
             transcript = stt_result["text"].strip()
             print(f"[INFO] PhoWhisper done ({len(transcript)} chars). Summarizing...")
+
+            # Giải phóng mảng âm thanh lớn và dọn bộ nhớ đệm CUDA
+            del speech
+            del stt_result
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
 
             summary = await asyncio.to_thread(
                 run_summarize,

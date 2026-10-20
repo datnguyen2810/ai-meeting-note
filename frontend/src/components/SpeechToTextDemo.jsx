@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import SummaryContent from "./SummaryContent";
 import "./MeetingNote.css";
 
 export default function SpeechToTextDemo() {
@@ -29,6 +30,8 @@ export default function SpeechToTextDemo() {
     try {
       const formData = new FormData();
       formData.append("file", selectedFile);
+      // http://localhost:8000/api/transcribe
+      // Chạy qua GPU 16GB của Kaggle qua Cloudflare Tunnel: https://sacramento-frozen-mpg-leads.trycloudflare.com/api/transcribe
       const response = await fetch("http://localhost:8000/api/transcribe", {
         method: "POST",
         body: formData,
@@ -49,8 +52,9 @@ export default function SpeechToTextDemo() {
         throw new Error("Phản hồi không hợp lệ từ API.");
       }
     } catch (err) {
+      console.error("Chi tiết lỗi:", err);
       if (err.name === "TypeError") {
-        setError("Không thể kết nối tới server. Kiểm tra API tại http://localhost:8000.");
+        setError(`Không thể kết nối tới server (${err.message}). Vui lòng kiểm tra lại xem server Kaggle có đang chạy và link Cloudflare còn hoạt động không.`);
       } else {
         setError(err.message);
       }
@@ -129,7 +133,7 @@ export default function SpeechToTextDemo() {
               <p className="mn-result-label">Tóm tắt</p>
               <div className="mn-result-content">
                 {summary
-                  ? <p className="mn-result-text">{summary}</p>
+                  ? <SummaryContent text={summary} />
                   : <p className="mn-result-empty">Đang tổng hợp nội dung...</p>
                 }
               </div>
