@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useLiveTranscription } from "../hooks/useLiveTranscription";
+import SummaryContent from "./SummaryContent";
 import "./LiveMeetingRoom.css";
 
 export default function LiveMeetingRoom() {
@@ -19,9 +20,14 @@ export default function LiveMeetingRoom() {
   const [batchTranscript, setBatchTranscript] = useState("");
   const [batchSummary, setBatchSummary] = useState("");
   const [batchError, setBatchError] = useState("");
+  const [audioDownload, setAudioDownload] = useState(null);
   const [isUserScrolledUp, setIsUserScrolledUp] = useState(false);
 
   const scrollRef = useRef(null);
+
+  useEffect(() => () => {
+    if (audioDownload) URL.revokeObjectURL(audioDownload.url);
+  }, [audioDownload]);
 
   // Định dạng thời gian mm:ss
   const formatTime = (secs) => {
@@ -53,6 +59,7 @@ export default function LiveMeetingRoom() {
     setBatchTranscript("");
     setBatchSummary("");
     setBatchError("");
+    setAudioDownload(null);
     await startRecording();
   };
 
@@ -60,6 +67,10 @@ export default function LiveMeetingRoom() {
   const handleStop = async () => {
     const result = await stopRecording();
     if (!result?.wavBlob) return;
+    setAudioDownload({
+      url: URL.createObjectURL(result.wavBlob),
+      filename: `meeting_${Date.now()}.wav`,
+    });
 
     setIsBatchLoading(true);
     setBatchError("");
@@ -291,7 +302,7 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
       )}
 
       {/* ── View Đối Chiếu 3 Cột ────────────────────────────── */}
-      {(batchTranscript || batchSummary) && (
+      {(batchTranscript || batchSummary || audioDownload) && (
         <div className="lmr-results-panel">
           <div className="lmr-export-actions">
             <div>
@@ -303,6 +314,11 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
             >
               Xuất file .md
             </button>
+            {audioDownload && (
+              <a className="lmr-btn lmr-btn--secondary" href={audioDownload.url} download={audioDownload.filename} style={{ textDecoration: "none" }}>
+                Tải bản ghi âm
+              </a>
+            )}
           </div>
 
           <div className="lmr-columns-grid">
@@ -358,7 +374,7 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
                 </span>
               </div>
               <div className="lmr-col-body">
-                {batchSummary || "Chưa có nội dung tóm tắt."}
+                {batchSummary ? <SummaryContent text={batchSummary} /> : "Chưa có nội dung tóm tắt."}
               </div>
             </div>
           </div>

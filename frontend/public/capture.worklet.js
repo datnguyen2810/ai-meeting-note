@@ -9,12 +9,27 @@ class CaptureProcessor extends AudioWorkletProcessor {
     this.frame = new Int16Array(320); // 20ms @ 16kHz (320 mẫu)
     this.n = 0;
     this.accum = [];                // gom 10 frame = 200ms trước khi gửi
+    this.stopped = false;
+    this.port.onmessage = (event) => {
+      if (event.data?.type !== "flush") return;
+      this.stopped = true;
+      const size = this.accum.length * 320 + this.n;
+      if (size > 0) {
+        const out = new Int16Array(size);
+        this.accum.forEach((frame, index) => out.set(frame, index * 320));
+        out.set(this.frame.subarray(0, this.n), this.accum.length * 320);
+        this.port.postMessage(out.buffer, [out.buffer]);
+      }
+      this.accum = [];
+      this.n = 0;
+      this.port.postMessage({ type: "flushed" });
+    };
   }
 
   flushFrame() {
     this.accum.push(this.frame.slice());
     if (this.accum.length === 10) {
-      // Gửi 1 ArrayBuffer 3200 byte (1600 mẫu Int16), không gửi từng frame nhỏ lẻ
+      // 3.200 mẫu Int16 = 6.400 byte (200ms), không gửi từng frame nhỏ lẻ
       const out = new Int16Array(3200);
       this.accum.forEach((f, i) => out.set(f, i * 320));
       this.port.postMessage(out.buffer, [out.buffer]); // zero-copy transfer
@@ -24,6 +39,7 @@ class CaptureProcessor extends AudioWorkletProcessor {
   }
 
   process(inputs) {
+    if (this.stopped) return true;
     const input = inputs[0];
     if (!input || input.length === 0) return true; // mic im lặng hoặc chưa sẵn sàng
 

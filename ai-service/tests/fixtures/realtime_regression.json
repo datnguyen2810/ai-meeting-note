@@ -1,0 +1,36 @@
+[
+  {
+    "id": "realtime_asr_noisy",
+    "transcript": "chào mọi người hôm nay nhóm mình họp để đánh giá tiến độ dự án và phân công công việc cho tuần tới trong tuần qua nhóm đã hoàn thành giao diện đăng nhập và chức năng tái tập cận thành phần hiển thị vụ đề trực tiếp cũng đã hoạt động nhưng thấy chủ lương vẫn phản hồi chậm và màn tóm tắt còn đi sai thời hạn nhóm thống nhất ưu tiên xử lý các ngối hiển tại thanh lam sẽ kiểm tra máy chủ và cải tiện tốc độ ở phản hồi trước từ sáu tuần này chị lan sẽ chuẩn bị báo cáo kết quả kiểm thử gửi cho nhóm trước ngày nay ngày hai mươi năm tháng mười anh minh sẽ kiểm tra độ chính xác của ph phần thống pháp tập trung vào tên người và nhiệm vụ được giao công việc của anh minh chữa chốt thời án sau khi hoàn thành mọi người cập nhật kết quả vào nhóm để cùng kiểm tra lại cuộc họp kết thúc tại đây cả mọi người.",
+    "required": ["thanh lam", "chị lan", "anh minh", "trước từ sáu tuần này", "trước ngày nay ngày hai mươi năm tháng mười"],
+    "forbidden": ["25/10", "anh nam", "Có công việc trùng người/nội dung nhưng khác thời hạn"],
+    "model_extraction": {
+      "objectives": ["đánh giá tiến độ dự án và phân công công việc cho tuần tới"],
+      "results": ["chào mọi người hôm nay nhóm mình họp để đánh giá tiến độ dự án và phân công công việc cho tuần tới trong tuần qua nhóm đã hoàn thành giao diện đăng nhập và chức năng tái tập cận thành phần hiển thị vụ đề trực tiếp cũng đã hoạt động nhưng thấy chủ lương vẫn phản hồi chậm và màn tóm tắt còn đi sai thời hạn"],
+      "issues": [],
+      "decisions": [],
+      "actions": [
+        "thanh lam sẽ kiểm tra máy chủ và cải tiện tốc độ ở phản hồi trước từ sáu tuần này",
+        "lan sẽ chuẩn bị báo cáo kết quả kiểm thử gửi cho nhóm trước ngày nay",
+        "minh sẽ kiểm tra độ chính xác của ph phần thống pháp tập trung vào tên người và nhiệm vụ được giao"
+      ]
+    }
+  },
+  {
+    "id": "realtime_asr_repeated_subject",
+    "transcript": "chào mọi người hôm nay nhóm mình học để đánh giá tiến độ dự án và phân công công việc cho tuần tới cho tuần qua nhóm đã hoàn thành giao diện đăng nhập và chức năng cải thiện âm thanh còn hiển thị phụ đề trực tiếp công nhận hoạt động nhưng máy chủ liễu lục vẫn phải nội trận và bảo tồn tất còn đi sai thời gian nhóm giống nhất ưu tiên xử lý các mối hiện tại anh nam sẽ kiểm tra máy chủ và cải tiến tốc độ phản hồi trước thứ sáu tuần này chị lam sẽ chuẩn bị báo cáo kết quả kiểm thử đối cho nhóm trước ngày hai mươi lăm tám mười anh minh sẽ kiểm tra độ chính xác của phần tổng thất tập trung vào tên người và nhiệm vụ được giao công việc của anh minh chơi chốt thể hạt sau khi hoàn thành mọi người cập nhật huyết quả vào nhóm để cùng kiểm tra lại khoa học kết thúc tại đây cáo mọi người.",
+    "required": ["anh nam", "chị lam", "anh minh", "trước thứ sáu tuần này", "trước ngày hai mươi lăm tám mười"],
+    "forbidden": ["chị lan", "chơi chốt", "cho tuần qua", "chào mọi người", "Thời hạn theo phiên âm", "Cần xác nhận lại"],
+    "model_extraction": {
+      "objectives": ["đánh giá tiến độ dự án và phân công công việc cho tuần tới"],
+      "results": ["chào mọi người hôm nay nhóm mình học để đánh giá tiến độ dự án và phân công công việc cho tuần tới cho tuần qua nhóm đã hoàn thành giao diện đăng nhập và chức năng cải thiện âm thanh còn hiển thị phụ đề trực tiếp công nhận hoạt động"],
+      "issues": ["máy chủ liễu lục vẫn phải nội trận và bảo tồn tất còn đi sai thời gian"],
+      "decisions": [],
+      "actions": [
+        "anh nam sẽ kiểm tra máy chủ và cải tiến tốc độ phản hồi trước thứ sáu tuần này",
+        "chị lam sẽ chuẩn bị báo cáo kết quả kiểm thử đối cho nhóm trước ngày hai mươi lăm tám mười",
+        "anh minh sẽ kiểm tra độ chính xác của phần tổng thất tập trung vào tên người và nhiệm vụ được giao công việc của anh minh chơi chốt thể hạt"
+      ]
+    }
+  }
+]
