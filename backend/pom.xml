@@ -75,11 +75,20 @@
 		</dependency>
 
 		<!-- Database -->
+		<!-- H2: dung cho local dev (in-memory), comment lai khi deploy voi MySQL -->
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+		<!-- MySQL: mo comment khi deploy thuc te -->
+		<!--
 		<dependency>
 			<groupId>com.mysql</groupId>
 			<artifactId>mysql-connector-j</artifactId>
 			<scope>runtime</scope>
 		</dependency>
+		-->
 
 		<!-- Lombok -->
 		<dependency>
