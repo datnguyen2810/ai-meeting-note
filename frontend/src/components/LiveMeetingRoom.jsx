@@ -1,20 +1,38 @@
 import { useState, useRef, useEffect } from "react";
 import { useLiveTranscription } from "../hooks/useLiveTranscription";
+import { useWebSpeechTranscription } from "../hooks/useWebSpeechTranscription";
 import SummaryContent from "./SummaryContent";
 import "./LiveMeetingRoom.css";
 
 export default function LiveMeetingRoom() {
+  // Quản lý chế độ động cơ: 'server' (Wav2Vec2 + PhoWhisper) | 'webspeech' (Web Speech API)
+  const [engineMode, setEngineMode] = useState(() => {
+    return localStorage.getItem("preferred_engine_mode") || "server";
+  });
+
+  const handleSwitchEngine = (mode) => {
+    setEngineMode(mode);
+    localStorage.setItem("preferred_engine_mode", mode);
+  };
+
+  // Khởi tạo cả hai engine
+  const serverTrans = useLiveTranscription();
+  const webSpeechTrans = useWebSpeechTranscription();
+
+  // Engine hiện đang được chọn
+  const activeTrans = engineMode === "server" ? serverTrans : webSpeechTrans;
+  const isAnyRecording = serverTrans.isRecording || webSpeechTrans.isRecording;
+
   const {
     status,
     isRecording,
     captions,
     duration,
     audioLevel,
-    lagWarning,
     errorMsg,
-    startRecording,
-    stopRecording,
-  } = useLiveTranscription();
+  } = activeTrans;
+
+  const lagWarning = engineMode === "server" ? serverTrans.lagWarning : false;
 
   const [isBatchLoading, setIsBatchLoading] = useState(false);
   const [batchTranscript, setBatchTranscript] = useState("");
@@ -38,7 +56,7 @@ export default function LiveMeetingRoom() {
     return `${m}:${s}`;
   };
 
-  // Tự động cuộn xuống cuối khi có caption mới (chỉ cuộn nếu user không cuộn ngược lên)
+  // Tự động cuộn xuống cuối khi có caption mới
   useEffect(() => {
     if (!isUserScrolledUp && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -49,7 +67,6 @@ export default function LiveMeetingRoom() {
   const handleScroll = () => {
     if (!scrollRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-    // Nếu khoảng cách tới đáy > 40px thì coi là user đang xem lại phía trên
     const isUp = scrollHeight - scrollTop - clientHeight > 40;
     setIsUserScrolledUp(isUp);
   };
@@ -60,51 +77,106 @@ export default function LiveMeetingRoom() {
     setBatchSummary("");
     setBatchError("");
     setAudioDownload(null);
-    await startRecording();
+    await activeTrans.startRecording();
   };
 
-  // Kết thúc họp và kích hoạt Engine 2 (Batch PhoWhisper) + Engine 3 (Qwen Summary)
+  // Kết thúc họp và kích hoạt xử lý gỡ băng + tóm tắt
   const handleStop = async () => {
-    const result = await stopRecording();
-    if (!result?.wavBlob) return;
-    setAudioDownload({
-      url: URL.createObjectURL(result.wavBlob),
-      filename: `meeting_${Date.now()}.wav`,
-    });
+    const result = await activeTrans.stopRecording();
 
-    setIsBatchLoading(true);
-    setBatchError("");
-
-    try {
-      const formData = new FormData();
-      formData.append("file", result.wavBlob, `meeting_${Date.now()}.wav`);
-
-      const res = await fetch("http://localhost:8000/api/transcribe", {
-        method: "POST",
-        body: formData,
+    if (engineMode === "server") {
+      // ── LUỒNG 1: Server AI (Wav2Vec2 realtime -> PhoWhisper batch + Qwen summary) ──
+      if (!result?.wavBlob) return;
+      setAudioDownload({
+        url: URL.createObjectURL(result.wavBlob),
+        filename: `meeting_${Date.now()}.wav`,
       });
 
-      if (!res.ok) {
-        let errText = `Server trả về mã lỗi: ${res.status}`;
-        try {
-          const errData = await res.json();
-          if (errData.detail) errText = errData.detail;
-        } catch (_) {}
-        throw new Error(errText);
+      setIsBatchLoading(true);
+      setBatchError("");
+
+      try {
+        const formData = new FormData();
+        formData.append("file", result.wavBlob, `meeting_${Date.now()}.wav`);
+
+        const res = await fetch("http://localhost:8000/api/transcribe", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!res.ok) {
+          let errText = `Server trả về mã lỗi: ${res.status}`;
+          try {
+            const errData = await res.json();
+            if (errData.detail) errText = errData.detail;
+          } catch { }
+          throw new Error(errText);
+        }
+
+        const data = await res.json();
+        setBatchTranscript(data.transcript || "");
+        setBatchSummary(data.summary || "");
+      } catch (err) {
+        console.error("[Batch Error]:", err);
+        setBatchError(err.message || "Gặp lỗi trong quá trình gỡ băng chính thức.");
+      } finally {
+        setIsBatchLoading(false);
+      }
+    } else {
+      // ── LUỒNG 2: Web Speech API (nhận diện tại trình duyệt -> Qwen summary trực tiếp) ──
+      if (result?.audioBlob) {
+        const ext = result.audioBlob.type?.includes("wav") ? "wav" : "webm";
+        setAudioDownload({
+          url: URL.createObjectURL(result.audioBlob),
+          filename: `meeting_webspeech_${Date.now()}.${ext}`,
+        });
       }
 
-      const data = await res.json();
-      setBatchTranscript(data.transcript || "");
-      setBatchSummary(data.summary || "");
-    } catch (err) {
-      console.error("[Batch Error]:", err);
-      setBatchError(err.message || "Gặp lỗi trong quá trình gỡ băng chính thức.");
-    } finally {
-      setIsBatchLoading(false);
+      const fullText = result?.fullTranscript || "";
+      setBatchTranscript(fullText);
+
+      if (!fullText.trim()) {
+        setBatchError("Không nhận diện được đoạn phát biểu nào để tóm tắt.");
+        return;
+      }
+
+      setIsBatchLoading(true);
+      setBatchError("");
+
+      try {
+        const res = await fetch("http://localhost:8000/api/summarize", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ transcript: fullText }),
+        });
+
+        if (!res.ok) {
+          let errText = `Server trả về mã lỗi: ${res.status}`;
+          try {
+            const errData = await res.json();
+            if (errData.detail) errText = errData.detail;
+          } catch { }
+          throw new Error(errText);
+        }
+
+        const data = await res.json();
+        if (data?.status === "success") {
+          setBatchSummary(data.summary || "");
+        } else {
+          throw new Error("Dữ liệu tóm tắt trả về không hợp lệ.");
+        }
+      } catch (err) {
+        console.error("[WebSpeech Summarize Error]:", err);
+        setBatchError(err.message || "Lỗi khi gọi AI tóm tắt (Qwen2.5).");
+      } finally {
+        setIsBatchLoading(false);
+      }
     }
   };
 
-  // Xuất file Markdown tổng hợp kết quả (chống mất dữ liệu khi F5)
+  // Xuất file Markdown tổng hợp kết quả
   const handleExportMarkdown = () => {
     const now = new Date().toLocaleString("vi-VN");
     let liveLogText = "";
@@ -116,9 +188,15 @@ export default function LiveMeetingRoom() {
         liveLogText += `- ${timeStr}${c.text}\n`;
       });
 
+    const engineName =
+      engineMode === "server"
+        ? "Mô hình AI Server (Wav2Vec2 + PhoWhisper)"
+        : "Web Speech API (Chrome / Edge Engine)";
+
     const mdContent = `# BIÊN BẢN TỔNG KẾT CUỘC HỌP
 *Thời gian lập:* ${now}
 *Thời lượng họp:* ${formatTime(duration)}
+*Động cơ nhận diện:* ${engineName}
 
 ---
 
@@ -127,12 +205,12 @@ ${batchSummary || "_Chưa có bản tóm tắt._"}
 
 ---
 
-## 2. BẢN GỠ BĂNG CHÍNH THỨC (PhoWhisper-small)
-${batchTranscript || "_Chưa có bản gỡ băng chính thức._"}
+## 2. BẢN GỠ BĂNG ĐẦY ĐỦ (${engineMode === "server" ? "PhoWhisper-small" : "Web Speech API"})
+${batchTranscript || "_Chưa có bản gỡ băng đầy đủ._"}
 
 ---
 
-## 3. NHẬT KÝ PHIÊN ÂM TRỰC TIẾP (Wav2Vec2 Realtime)
+## 3. NHẬT KÝ PHIÊN ÂM TRỰC TIẾP (${engineMode === "server" ? "Wav2Vec2 Realtime" : "Web Speech API Realtime"})
 ${liveLogText || "_Không có nhật ký phát ngôn._"}
 `;
 
@@ -154,20 +232,64 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
 
   return (
     <div className="lmr-container">
-      {/* ── Status Bar ──────────────────────────────────────── */}
+      {/* ── 0. CÔNG TẮC CHUYỂN ĐỔI ENGINE (AI Model vs Web Speech API) ── */}
+      <div className="lmr-engine-switcher">
+        <div className="lmr-engine-meta">
+          <span className="lmr-engine-title">Mô hình STT:</span>
+          <div className="lmr-engine-desc">
+            {engineMode === "server" ? (
+              <>
+
+                <span>Wav2Vec2 (Realtime) + PhoWhisper (Batch)</span>
+              </>
+            ) : (
+              <>
+
+                <span>Web Speech API (Chrome/Edge Engine)</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div className="lmr-engine-tabs">
+          <button
+            type="button"
+            className={`lmr-engine-tab ${engineMode === "server" ? "active" : ""}`}
+            onClick={() => handleSwitchEngine("server")}
+            disabled={isAnyRecording || isBatchLoading}
+            title={isAnyRecording ? "Vui lòng dừng cuộc họp trước khi đổi mô hình" : "Chuyển sang mô hình AI máy chủ"}
+          >
+
+            <span>AI Model</span>
+          </button>
+          <button
+            type="button"
+            className={`lmr-engine-tab ${engineMode === "webspeech" ? "active" : ""}`}
+            onClick={() => handleSwitchEngine("webspeech")}
+            disabled={isAnyRecording || isBatchLoading}
+            title={isAnyRecording ? "Vui lòng dừng cuộc họp trước khi đổi mô hình" : "Chuyển sang Web Speech API của trình duyệt"}
+          >
+
+            <span>Web Speech API</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ── 1. Status Bar ──────────────────────────────────────── */}
       <div className="lmr-status-bar">
         <div className="lmr-status-indicator">
           <span
-            className={`lmr-dot ${
-              isRecording
-                ? "lmr-dot--recording"
-                : status === "connecting"
+            className={`lmr-dot ${isRecording
+              ? "lmr-dot--recording"
+              : status === "connecting"
                 ? "lmr-dot--connecting"
                 : ""
-            }`}
+              }`}
           />
           <span style={{ fontWeight: 500 }}>
-            {status === "recording" && "Đang trong cuộc họp"}
+            {status === "recording" && (
+              engineMode === "server" ? "Đang trong cuộc họp (AI Server)" : "Đang trong cuộc họp (Web Speech)"
+            )}
             {status === "connecting" && "Đang kết nối..."}
             {status === "stopping" && "Đang kết thúc phiên họp..."}
             {status === "idle" && "Sẵn sàng bắt đầu"}
@@ -199,10 +321,12 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
         </div>
       )}
 
-      {/* ── Khung Live Captions (Realtime Streaming) ─────────── */}
+      {/* ── 2. Khung Live Captions (Realtime Streaming) ─────────── */}
       <div className="lmr-caption-box">
         <div className="lmr-caption-header">
-          <span>Phụ đề trực tiếp</span>
+          <span>
+            Phụ đề trực tiếp ({engineMode === "server" ? "Wav2Vec2" : "Web Speech"})
+          </span>
           <span>
             {captions.filter((c) => c.isFinal).length} cụm từ đã nhận diện
           </span>
@@ -217,18 +341,19 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
             <div className="lmr-caption-empty">
               <span>Nhấn &quot;Bắt đầu cuộc họp&quot; và nói vào micro để thấy phụ đề.</span>
               <span style={{ fontSize: 12, opacity: 0.8 }}>
-                (Nội dung phát biểu sẽ hiển thị theo thời gian thực)
+                {engineMode === "server"
+                  ? "(Đang dùng mô hình AI: Wav2Vec2 chạy trực tiếp qua WebSocket)"
+                  : "(Đang dùng Web Speech API: Chữ sẽ xuất hiện ngay lập tức khi bạn nói)"}
               </span>
             </div>
           ) : (
             captions.map((item) => (
               <div
                 key={item.seq}
-                className={`lmr-caption-item ${
-                  item.isFinal
-                    ? "lmr-caption-item--final"
-                    : "lmr-caption-item--interim"
-                }`}
+                className={`lmr-caption-item ${item.isFinal
+                  ? "lmr-caption-item--final"
+                  : "lmr-caption-item--interim"
+                  }`}
               >
                 <div className="lmr-caption-meta">
                   {item.isFinal ? (
@@ -259,7 +384,7 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
         </div>
       </div>
 
-      {/* ── Controls ────────────────────────────────────────── */}
+      {/* ── 3. Controls ────────────────────────────────────────── */}
       <div className="lmr-controls">
         {!isRecording ? (
           <button
@@ -286,13 +411,15 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
         )}
       </div>
 
-      {/* ── Loading ─────────────────────────────────────────── */}
+      {/* ── 4. Loading ─────────────────────────────────────────── */}
       {isBatchLoading && (
         <div className="lmr-batch-loading">
           <div className="mn-spinner" style={{ width: 24, height: 24, borderWidth: 3 }} />
           <div>
             <p style={{ fontWeight: 600, color: "var(--text-h)" }}>
-              Đang gỡ băng và tạo tóm tắt biên bản...
+              {engineMode === "server"
+                ? "Đang gỡ băng chính thức (PhoWhisper) và tạo tóm tắt biên bản (Qwen2.5)..."
+                : "Đang phân tích & tạo tóm tắt biên bản bằng AI (Qwen2.5)..."}
             </p>
             <p style={{ fontSize: 13, color: "var(--text)", marginTop: 4 }}>
               Vui lòng không tắt hoặc tải lại trang trong giây lát.
@@ -301,7 +428,7 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
         </div>
       )}
 
-      {/* ── View Đối Chiếu 3 Cột ────────────────────────────── */}
+      {/* ── 5. View Đối Chiếu 3 Cột ────────────────────────────── */}
       {(batchTranscript || batchSummary || audioDownload) && (
         <div className="lmr-results-panel">
           <div className="lmr-export-actions">
@@ -315,7 +442,12 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
               Xuất file .md
             </button>
             {audioDownload && (
-              <a className="lmr-btn lmr-btn--secondary" href={audioDownload.url} download={audioDownload.filename} style={{ textDecoration: "none" }}>
+              <a
+                className="lmr-btn lmr-btn--secondary"
+                href={audioDownload.url}
+                download={audioDownload.filename}
+                style={{ textDecoration: "none" }}
+              >
                 Tải bản ghi âm
               </a>
             )}
@@ -327,7 +459,7 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
               <div className="lmr-col-header">
                 <h3>1. Bản ghi trực tiếp</h3>
                 <span className="lmr-col-badge">
-                  Thời gian thực
+                  {engineMode === "server" ? "Wav2Vec2 Realtime" : "Web Speech"}
                 </span>
               </div>
               <div className="lmr-col-body">
@@ -355,7 +487,7 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
               <div className="lmr-col-header">
                 <h3>2. Bản gỡ băng đầy đủ</h3>
                 <span className="lmr-col-badge">
-                  Đầy đủ & chuẩn hóa
+                  {engineMode === "server" ? "PhoWhisper chuẩn hóa" : "Web Speech Transcript"}
                 </span>
               </div>
               <div className="lmr-col-body">
@@ -370,7 +502,7 @@ ${liveLogText || "_Không có nhật ký phát ngôn._"}
                   3. Tóm tắt & Phân công
                 </h3>
                 <span className="lmr-col-badge">
-                  Biên bản tóm tắt
+                  Qwen2.5-1.5B
                 </span>
               </div>
               <div className="lmr-col-body">

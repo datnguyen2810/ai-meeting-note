@@ -7,6 +7,115 @@
   width: 100%;
 }
 
+/* ── Engine Switcher ─────────────────────────────────────────── */
+.lmr-engine-switcher {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 16px;
+  background: #ffffff;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.lmr-engine-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lmr-engine-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.lmr-engine-desc {
+  font-size: 13px;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lmr-engine-badge-tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(170, 59, 255, 0.12);
+  color: var(--accent, #aa3bff);
+}
+
+.lmr-engine-badge-tag--browser {
+  background: rgba(14, 165, 233, 0.12);
+  color: #0284c7;
+}
+
+.lmr-engine-tabs {
+  display: flex;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 10px;
+  gap: 4px;
+}
+
+.lmr-engine-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+}
+
+.lmr-engine-tab:hover:not(:disabled) {
+  color: #0f172a;
+}
+
+.lmr-engine-tab.active {
+  background: #ffffff;
+  color: #0f172a;
+  font-weight: 600;
+  border-color: rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.06);
+}
+
+.lmr-engine-tab:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lmr-engine-tab-icon {
+  font-size: 15px;
+}
+
+@media (max-width: 860px) {
+  .lmr-engine-switcher {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .lmr-engine-tabs {
+    width: 100%;
+  }
+  .lmr-engine-tab {
+    flex: 1;
+    justify-content: center;
+  }
+}
+
 /* ── Top Bar & Status ────────────────────────────────────────── */
 .lmr-status-bar {
   display: flex;
