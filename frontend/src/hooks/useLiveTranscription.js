@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { encodeWav } from "../utils/encodeWav";
+import { flushCapture, padPcmFrame } from "../utils/flushCapture";
 
 const WS_URL = "ws://localhost:8000/ws/live-stream";
 
@@ -140,10 +141,11 @@ export function useLiveTranscription() {
 
             // Nối cổng worklet để gửi binary audio lên socket
             workletNode.port.onmessage = (e) => {
+              if (!(e.data instanceof ArrayBuffer)) return;
+              const chunkArray = new Int16Array(e.data);
+              chunksRef.current.push(chunkArray);
               if (ws.readyState === WebSocket.OPEN) {
-                const chunkArray = new Int16Array(e.data);
-                chunksRef.current.push(chunkArray);
-                ws.send(e.data); // Gửi ArrayBuffer Int16 PCM
+                ws.send(padPcmFrame(e.data)); // Đệm frame cuối cho VAD; WAV giữ số mẫu thật.
               }
             };
 
@@ -234,6 +236,10 @@ export function useLiveTranscription() {
         console.log("[WS] Connection closed.");
         cleanupAudio();
         setStatus("idle");
+        if (resolveStopRef.current) {
+          resolveStopRef.current({ wavBlob: encodeWav(chunksRef.current, 16000), captions });
+          resolveStopRef.current = null;
+        }
       };
     } catch (err) {
       console.error("[Live] Failed to start:", err);
@@ -248,27 +254,31 @@ export function useLiveTranscription() {
   }, [cleanupAudio, updateAudioLevel, captions]);
 
   // Kết thúc cuộc họp
-  const stopRecording = useCallback(() => {
-    return new Promise((resolve) => {
-      setStatus("stopping");
+  const stopRecording = useCallback(async () => {
+    setStatus("stopping");
+    const result = new Promise((resolve) => {
       resolveStopRef.current = resolve;
-
-      // Dừng mic ngay lập tức để tắt đèn micro
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-      }
-
-      // Gửi stop lên server
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({ type: "stop" }));
-      } else {
-        // Nếu socket đã đóng sẵn, đóng gói luôn
-        const wavBlob = encodeWav(chunksRef.current, 16000);
-        cleanupAudio();
-        setStatus("idle");
-        resolve({ wavBlob, captions });
-      }
     });
+
+    // Dừng mic ngay lập tức để tắt đèn micro.
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+    }
+    const flushed = await flushCapture(workletNodeRef.current);
+    if (!flushed) console.warn("[Audio] Không nhận được xác nhận gửi hết bộ đệm âm thanh.");
+    // Gửi stop sau PCM cuối cùng, kể cả phần chưa đủ một frame/chunk.
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: "stop" }));
+    } else {
+      const wavBlob = encodeWav(chunksRef.current, 16000);
+      cleanupAudio();
+      setStatus("idle");
+      if (resolveStopRef.current) {
+        resolveStopRef.current({ wavBlob, captions });
+        resolveStopRef.current = null;
+      }
+    }
+    return result;
   }, [cleanupAudio, captions]);
 
   // Cleanup khi component unmount

@@ -1,0 +1,39 @@
+.meeting-summary {
+  color: inherit;
+  font-size: 14px;
+  line-height: 1.75;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.meeting-summary h3 {
+  margin: 20px 0 8px;
+  color: inherit;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.meeting-summary > :first-child {
+  margin-top: 0;
+}
+
+.meeting-summary > :last-child {
+  margin-bottom: 0;
+}
+
+.meeting-summary p,
+.meeting-summary ul {
+  margin: 0 0 12px;
+}
+
+.meeting-summary ul {
+  padding-left: 20px;
+}
+
+.meeting-summary li {
+  margin-bottom: 8px;
+}
+
+.meeting-summary em {
+  color: var(--text, #64748b);
+}
