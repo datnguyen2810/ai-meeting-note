@@ -21,6 +21,7 @@ import java.util.List;
 public class MeetingController {
 
     private final MeetingService meetingService;
+    private final vn.httm.backend.service.MeetingProcessingService meetingProcessingService;
 
     @PostMapping
     public ResponseEntity<ApiResponse<MeetingResponse>> create(
@@ -85,5 +86,42 @@ public class MeetingController {
     @GetMapping("/{id}/participants")
     public ResponseEntity<ApiResponse<List<ParticipantResponse>>> getParticipants(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.ok(meetingService.getParticipants(id)));
+    }
+
+    // ==========================================
+    // API M1: Xu ly cuoc hop voi Speaker Diarization
+    // ==========================================
+    @PostMapping(value = "/process-audio", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> processAudio(
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+            @RequestParam(value = "title", required = false) String title,
+            @RequestParam(value = "clientRequestId", required = false) String clientRequestId,
+            @RequestParam(value = "maxSpeakers", required = false) Integer maxSpeakers,
+            @AuthenticationPrincipal UserDetails userDetails) throws java.io.IOException {
+        String username = userDetails != null ? userDetails.getUsername() : "anonymous";
+        java.util.Map<String, Object> result = meetingProcessingService.processMeetingAudio(
+                title, file, username, clientRequestId, maxSpeakers);
+        return ResponseEntity.ok(ApiResponse.ok("Xử lý cuộc họp thành công", result));
+    }
+
+    @GetMapping("/{id}/speakers")
+    public ResponseEntity<ApiResponse<List<java.util.Map<String, Object>>>> getSpeakers(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(meetingProcessingService.getSpeakers(id)));
+    }
+
+    @GetMapping("/{id}/segments")
+    public ResponseEntity<ApiResponse<List<java.util.Map<String, Object>>>> getSegments(
+            @PathVariable Long id,
+            @RequestParam(value = "speakerId", required = false) String speakerId) {
+        return ResponseEntity.ok(ApiResponse.ok(meetingProcessingService.getSegments(id, speakerId)));
+    }
+
+    @PostMapping("/{id}/chat")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> chat(
+            @PathVariable Long id,
+            @RequestBody java.util.Map<String, String> body) {
+        String question = body.get("question");
+        String speakerId = body.get("speakerId");
+        return ResponseEntity.ok(ApiResponse.ok(meetingProcessingService.chatWithMeeting(id, question, speakerId)));
     }
 }

@@ -63,4 +63,55 @@ public class AiServiceClient {
 
         throw new RuntimeException("AI service trả về lỗi: " + response.getStatusCode());
     }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> processMeetingAudio(String filePath, int maxSpeakers, String jobId) {
+        File audioFile = new File(filePath);
+        if (!audioFile.exists()) {
+            throw new RuntimeException("File không tồn tại: " + filePath);
+        }
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+        MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
+        body.add("file", new FileSystemResource(audioFile));
+
+        HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(body, headers);
+        String url = baseUrl + "/api/process-meeting?max_speakers=" + maxSpeakers + (jobId != null ? "&job_id=" + jobId : "");
+
+        log.info("Gọi AI process-meeting: {} — file: {}", url, audioFile.getName());
+        ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
+
+        if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+            return response.getBody();
+        }
+
+        throw new RuntimeException("AI service process-meeting trả về lỗi: " + response.getStatusCode());
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> meetingChat(String question, Object segments, String speakerId) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("question", question);
+        body.put("segments", segments);
+        if (speakerId != null) {
+            body.put("speaker_id", speakerId);
+        }
+
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+        String url = baseUrl + "/api/meeting-chat";
+
+        log.info("Gọi AI meeting-chat: {} — question: {}", url, question);
+        ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
+
+        if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+            return response.getBody();
+        }
+
+        throw new RuntimeException("AI service meeting-chat trả về lỗi: " + response.getStatusCode());
+    }
 }

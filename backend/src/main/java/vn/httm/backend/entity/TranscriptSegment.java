@@ -25,6 +25,12 @@ public class TranscriptSegment {
     @Column(name = "speaker_label", length = 50)
     private String speakerLabel;
 
+    @Column(name = "speaker_key", length = 50)
+    private String speakerKey;
+
+    @Column(name = "attribution_status", length = 50)
+    private String attributionStatus;
+
     // Giây bắt đầu trong file audio
     @Column(name = "start_time_sec")
     private Double startTimeSec;

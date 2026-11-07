@@ -26,6 +26,7 @@ from vad_buffer import (
 )
 import ws_protocol as proto
 from summarization import run_summarize
+from meeting_processing import process_meeting_pipeline, run_meeting_chat
 
 # ==========================================
 # 1. Quản lý vòng đời Lifespan & nạp model
@@ -389,5 +390,77 @@ async def summarize_endpoint(body: SummarizeRequest):
             "status": "success",
             "summary": summary,
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==========================================
+# 7. API M1: Xu ly cuoc hop toan dien (Diarization + ASR + Summary)
+# ==========================================
+@app.post("/api/process-meeting")
+async def process_meeting_endpoint(
+    file: UploadFile = File(...),
+    max_speakers: int = 4,
+    job_id: Optional[str] = None
+):
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+    temp_file_path = temp_file.name
+    try:
+        content = await file.read()
+        temp_file.write(content)
+        temp_file.close()
+
+        async with app.state.gpu_lock:
+            result = await asyncio.to_thread(
+                process_meeting_pipeline,
+                app.state.stt_pipe,
+                app.state.llm_model,
+                app.state.llm_tokenizer,
+                temp_file_path,
+                max_speakers,
+                app.state.device,
+            )
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if os.path.exists(temp_file_path):
+            try:
+                os.remove(temp_file_path)
+            except OSError:
+                pass
+
+
+# ==========================================
+# 8. API M1: Hoi dap cuoc hop (QA Chat voi Citations)
+# ==========================================
+class MeetingChatRequest(BaseModel):
+    question: str
+    segments: list
+    speaker_id: Optional[str] = None
+
+
+@app.post("/api/meeting-chat")
+async def meeting_chat_endpoint(body: MeetingChatRequest):
+    if not body.question or not body.question.strip():
+        raise HTTPException(status_code=400, detail="question must not be empty")
+
+    try:
+        async with app.state.gpu_lock:
+            result = await asyncio.to_thread(
+                run_meeting_chat,
+                app.state.llm_model,
+                app.state.llm_tokenizer,
+                body.question,
+                body.segments,
+                body.speaker_id,
+                app.state.device,
+            )
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

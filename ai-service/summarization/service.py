@@ -119,14 +119,79 @@ def run_summarize(llm_model, llm_tokenizer, transcript: str, device: str) -> str
                     stopping_criteria=StoppingCriteriaList([CompleteExtraction(inputs.input_ids.shape[1])]),
                 )
             raw = llm_tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True)
-            return completed_json(raw) or raw
+            comp = completed_json(raw)
+            if comp:
+                return comp
+            raw_str = raw.strip()
+            if raw_str.startswith("{") and not raw_str.endswith("}"):
+                raw_str += "\n}"
+            return raw_str
         finally:
             del inputs, outputs
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
 
     try:
-        return summarize_with_generator(transcript, llm_tokenizer, generate)
+        summary = summarize_with_generator(transcript, llm_tokenizer, generate)
+        if (
+            not summary
+            or "Chưa trích xuất được dữ kiện" in summary
+            or summary.strip().startswith("Chưa trích xuất")
+        ):
+            logger.info("Summary fallback to direct structured summarization.")
+            summary = generate_direct_summary(llm_model, llm_tokenizer, transcript, device)
+        return summary
     except torch.cuda.OutOfMemoryError:
         logger.exception("Summary inference ran out of GPU memory")
         return "Không thể hoàn tất tóm tắt do thiếu bộ nhớ GPU. Phiên âm vẫn có thể sử dụng; hãy thử lại với đoạn ngắn hơn."
+    except Exception as exc:
+        logger.warning("Summarize with generator failed (%s); falling back to direct summary", exc)
+        try:
+            return generate_direct_summary(llm_model, llm_tokenizer, transcript, device)
+        except Exception as e:
+            logger.exception("Direct summary also failed: %s", e)
+            return "Chưa thể tạo tóm tắt do lỗi xử lý mô hình."
+
+
+def generate_direct_summary(llm_model, llm_tokenizer, transcript: str, device: str) -> str:
+    """Tóm tắt trực tiếp bằng Qwen2.5 khi bộ trích xuất dữ kiện khắt khe không khớp."""
+    import torch
+
+    inputs = outputs = None
+    try:
+        system_prompt = (
+            "Bạn là trợ lý AI chuyên tóm tắt biên bản cuộc họp tiếng Việt chuyên nghiệp, khách quan.\n"
+            "Nhiệm vụ: Phân tích toàn bộ nội dung biên bản cuộc họp và viết một bản tóm tắt hoàn chỉnh theo định dạng Markdown.\n\n"
+            "Cấu trúc tóm tắt:\n"
+            "### Mục tiêu cuộc họp\n"
+            "- Nêu rõ mục tiêu hoặc lý do tổ chức cuộc họp.\n\n"
+            "### Kết quả / Tiến độ\n"
+            "- Các kết quả, tiến độ công việc hoặc điểm sáng đã đạt được.\n\n"
+            "### Kế hoạch / Nhiệm vụ tiếp theo\n"
+            "- Các công việc cần triển khai, bước đi tiếp theo và người phụ trách nếu có.\n\n"
+            "### Vấn đề cần xử lý\n"
+            "- Các tồn đọng, khó khăn, phản hồi chưa tốt hoặc sự cố cần khắc phục (nếu không có, có thể bỏ qua mục này).\n\n"
+            "Quy tắc quan trọng:\n"
+            "1. Chỉ tóm tắt dựa trên sự thật có trong biên bản, không suy diễn hoặc bịa đặt.\n"
+            "2. Không sử dụng biểu tượng hoặc emoji.\n"
+            "3. Trình bày ngắn gọn, súc tích, theo từng gạch đầu dòng rõ ràng."
+        )
+        user_prompt = f"Biên bản cuộc họp:\n{transcript}\n\nHãy viết bản tóm tắt cuộc họp theo cấu trúc trên:"
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+        prompt = llm_tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        inputs = llm_tokenizer(prompt, return_tensors="pt").to(device)
+        with torch.inference_mode():
+            outputs = llm_model.generate(
+                **inputs,
+                max_new_tokens=800,
+                do_sample=False,
+                repetition_penalty=1.05
+            )
+        return llm_tokenizer.decode(outputs[0][inputs.input_ids.shape[1]:], skip_special_tokens=True).strip()
+    finally:
+        del inputs, outputs
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()

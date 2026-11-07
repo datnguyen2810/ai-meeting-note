@@ -4,6 +4,7 @@ import LandingPage from "./pages/LandingPage";
 import AuthPage from "./pages/AuthPage";
 import LiveMeetingRoom from "./components/LiveMeetingRoom";
 import SpeechToTextDemo from "./components/SpeechToTextDemo";
+import SpeakerChatMeeting from "./components/SpeakerChatMeeting";
 import "./App.css";
 
 function getUserInitials(user) {
@@ -18,7 +19,7 @@ function getUserInitials(user) {
 export default function App() {
   const [page, setPage] = useState("landing");
   const [user, setUser] = useState(getStoredUser());
-  const [activeTab, setActiveTab] = useState("live");
+  const [activeTab, setActiveTab] = useState("speaker");
   const [meetings, setMeetings] = useState([]);
   const [searchMeeting, setSearchMeeting] = useState("");
   const [selectedMeeting, setSelectedMeeting] = useState(null);
@@ -167,8 +168,15 @@ ${m.transcript || "_Chưa có nội dung cuộc họp chi tiết._"}
           </div>
         </div>
 
-        {/* Tab chuyển đổi 2 chức năng */}
+        {/* Tab chuyển đổi các chức năng */}
         <div className="db-tabs">
+          <button
+            type="button"
+            className={`db-tab-btn ${activeTab === "speaker" ? "active" : ""}`}
+            onClick={() => setActiveTab("speaker")}
+          >
+            Phân vai người nói & Chat
+          </button>
           <button
             type="button"
             className={`db-tab-btn ${activeTab === "live" ? "active" : ""}`}
@@ -289,6 +297,7 @@ ${m.transcript || "_Chưa có nội dung cuộc họp chi tiết._"}
         {/* Cột phải: Khu vực làm việc chính (2 chức năng) */}
         <main className="db-main-content">
           <div className="db-workspace-card">
+            {activeTab === "speaker" && <SpeakerChatMeeting onMeetingSaved={loadMeetings} />}
             {activeTab === "live" && <LiveMeetingRoom onMeetingSaved={loadMeetings} />}
             {activeTab === "upload" && <SpeechToTextDemo onMeetingSaved={loadMeetings} />}
           </div>

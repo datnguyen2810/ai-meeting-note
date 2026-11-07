@@ -8,4 +8,5 @@ import java.util.List;
 
 public interface TranscriptSegmentRepository extends JpaRepository<TranscriptSegment, Long> {
     List<TranscriptSegment> findByTranscriptOrderBySequenceOrder(Transcript transcript);
+    List<TranscriptSegment> findByTranscriptIdOrderBySequenceOrderAsc(Long transcriptId);
 }

@@ -173,4 +173,42 @@ export const api = {
     });
     return res.data || [];
   },
+
+  // M1: Process Audio with Diarization
+  async processAudio(file, title, clientRequestId, maxSpeakers = 4) {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (title) formData.append("title", title);
+    if (clientRequestId) formData.append("clientRequestId", clientRequestId);
+    formData.append("maxSpeakers", maxSpeakers);
+
+    const res = await request("/meetings/process-audio", {
+      method: "POST",
+      body: formData,
+    });
+    return res.data;
+  },
+
+  async getSpeakers(meetingId) {
+    const res = await request(`/meetings/${meetingId}/speakers`, {
+      method: "GET",
+    });
+    return res.data || [];
+  },
+
+  async getSegments(meetingId, speakerId) {
+    const query = speakerId ? `?speakerId=${encodeURIComponent(speakerId)}` : "";
+    const res = await request(`/meetings/${meetingId}/segments${query}`, {
+      method: "GET",
+    });
+    return res.data || [];
+  },
+
+  async chatMeeting(meetingId, question, speakerId) {
+    const res = await request(`/meetings/${meetingId}/chat`, {
+      method: "POST",
+      body: JSON.stringify({ question, speakerId }),
+    });
+    return res.data;
+  },
 };

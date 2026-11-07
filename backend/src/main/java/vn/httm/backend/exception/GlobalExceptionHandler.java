@@ -46,7 +46,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneral(Exception ex) {
         log.error("Unexpected error: {}", ex.getMessage(), ex);
+        String msg = ex.getMessage() != null ? ex.getMessage() : "Lỗi hệ thống. Vui lòng thử lại.";
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-            .body(ApiResponse.error("Lỗi hệ thống. Vui lòng thử lại."));
+            .body(ApiResponse.error(msg));
     }
 }

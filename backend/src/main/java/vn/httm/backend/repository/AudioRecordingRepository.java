@@ -8,4 +8,5 @@ import java.util.List;
 
 public interface AudioRecordingRepository extends JpaRepository<AudioRecording, Long> {
     List<AudioRecording> findByMeetingOrderByUploadedAtDesc(Meeting meeting);
+    List<AudioRecording> findByMeetingId(Long meetingId);
 }

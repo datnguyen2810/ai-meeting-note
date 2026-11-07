@@ -29,6 +29,12 @@ public class AudioRecording {
     @Column(name = "file_path", nullable = false)
     private String filePath;
 
+    @Column(name = "storage_node", length = 100)
+    private String storageNode;
+
+    @Column(name = "storage_key", length = 255)
+    private String storageKey;
+
     @Column(name = "original_filename", length = 255)
     private String originalFilename;
 
