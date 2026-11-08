@@ -45,10 +45,8 @@ public class AudioService {
         Path uploadPath = Paths.get(audioUploadDir, String.valueOf(meetingId));
         Files.createDirectories(uploadPath);
 
-        // Đặt tên file duy nhất
-        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-        String storedFilename = timestamp + "_" + originalFilename;
-        Path filePath = uploadPath.resolve(storedFilename);
+        // Đặt tên file duy nhất, đã làm sạch tên gốc để không ghi ra ngoài thư mục
+        Path filePath = UploadFileNames.storedPath(uploadPath, originalFilename, "audio." + extension);
 
         Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 

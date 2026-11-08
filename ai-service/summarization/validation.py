@@ -135,14 +135,23 @@ def actions_from_quote(quote: str) -> list[Action]:
                 if re.search(r"\b(?:chốt|thời hạn|deadline)\b", after[:50], re.I):
                     evidence = evidence[:task_start + marker.start()].rstrip()
                     break
-        deadline = re.search(r"\b(?:trước|chậm nhất|hạn chót|vào ngày|trong (?:ngày|tuần|tháng))\b", evidence[task_start:], re.I)
+        deadline = re.search(
+            r"\b(?:trước|chậm nhất|hạn chót|vào ngày|trong (?:ngày|tuần|tháng))\b|\bhạn(?:\s+nộp)?\s+là\s+",
+            evidence[task_start:], re.I,
+        )
         task_end = task_start + deadline.start() if deadline else len(evidence)
         task = evidence[task_start:task_end].strip(" ,;.")
         if not task or re.match(r"(?:không|chưa)\b", task, re.I):
             continue
+        deadline_text = None
+        if deadline:
+            # "hạn là thứ sáu" -> hạn "thứ sáu" (render đã in "Hạn: ...")
+            label = re.match(r"hạn(?:\s+nộp)?\s+là\s+", deadline.group(0), re.I)
+            deadline_text = evidence[task_start + deadline.end():] if label else evidence[task_end:]
+            deadline_text = deadline_text.strip(" ,;.") or None
         actions.append(Action(
             assignee=owner, task=task,
-            deadline_text=evidence[task_end:] if deadline else None,
+            deadline_text=deadline_text,
             evidence=evidence,
         ))
     return actions
@@ -162,11 +171,35 @@ def source_assignments(source: str, hints=()) -> list[Action]:
             if not any(m.start() < match.start() < m.end() and match.end() <= m.end() for m in named):
                 starts.add(match.start())
     starts = sorted(starts)
+    # Câu tự nhận việc ("mình sẽ...") cũng kết thúc câu giao việc đứng trước nó:
+    # "tuấn sẽ làm báo cáo hạn là ngày tới mình sẽ nhắn riêng..." không được nối hạn.
+    boundaries = sorted(set(starts) | {m.start() for m in re.finditer(FIRST_PERSON_COMMITMENT, source, re.I)})
     result = []
-    for index, start in enumerate(starts):
-        end = starts[index + 1] if index + 1 < len(starts) else len(source)
+    for start in starts:
+        end = next((b for b in boundaries if b > start), len(source))
         result.extend(actions_from_quote(source[start:end]))
     return result
+
+
+FIRST_PERSON_COMMITMENT = r"\b(?:mình|tôi|em|tớ)\s+(?:sẽ|chịu trách nhiệm)\b"
+
+
+def first_person_commitments(source: str) -> list[Action]:
+    """'mình sẽ ...' clauses as actions owned by 'mình'.
+
+    In meetings people mostly volunteer ('còn mình sẽ tối ưu trợ lý...') rather
+    than being named, and the model often drops these. The owner stays the
+    spoken pronoun; meeting_processing.attribution later maps it to the speaker
+    label when exactly one speaker said that clause.
+    """
+    starts = [m.start() for m in re.finditer(FIRST_PERSON_COMMITMENT, source, re.I)]
+    # Một câu giao việc có tên ("anh nam sẽ...") cũng là ranh giới
+    boundaries = sorted(set(starts) | {m.start() for m in re.finditer(NAMED_ASSIGNMENT, source, re.I)})
+    actions = []
+    for start in starts:
+        end = next((b for b in boundaries if b > start), len(source))
+        actions.extend(actions_from_quote(source[start:end]))
+    return actions
 
 
 def owner_core(owner: str | None) -> str:
@@ -211,6 +244,7 @@ def explicit_source_facts(source: str) -> SummaryData:
     """
     data = SummaryData(objectives=[], results=[], issues=[], decisions=[], actions=[])
     data.actions.extend(source_assignments(source))
+    data.actions.extend(first_person_commitments(source))
     for sentence in re.split(r"(?<=[.!?])\s+|\n+", source):
         if re.match(r"(?:cần|phải|hãy)\b", sentence.strip(), re.I) and not re.search(NAMED_ASSIGNMENT, sentence, re.I):
             data.actions.extend(actions_from_quote(sentence))
@@ -219,6 +253,36 @@ def explicit_source_facts(source: str) -> SummaryData:
             if re.search(r"\bđã hoàn thành\b", clause, re.I) and not re.search(r"\b(?:không|chưa|nếu|liệu)\b", clause, re.I):
                 data.results.extend(explicit_source_facts_for_result(clause))
     return validate_extraction(data, source)
+
+
+# Khóa model hay dùng khi trả phân công dạng object thay vì chuỗi
+# (đã gặp: name/work/deadline, action/person/work/deadline)
+OWNER_KEYS = ("assignee", "name", "person", "owner", "who", "người")
+TASK_KEYS = ("task", "work", "job", "việc", "công việc")
+DEADLINE_KEYS = ("deadline_text", "deadline", "due", "hạn", "thời hạn")
+
+
+def coerce_item(section: str, item):
+    """Turn an assignment object the model returned instead of a string into
+    schema values. Values are copied unchanged; grounding against the source
+    still decides whether they are kept.
+    """
+    if not isinstance(item, dict) or "evidence" in item:
+        return item
+    if section == "actions":
+        if "task" in item:
+            return item
+        clause = item.get("action")
+        if isinstance(clause, str) and clause.strip():
+            return clause  # full assignment clause: parsed like a string action
+        pick = lambda keys: next((item[k] for k in keys if isinstance(item.get(k), str) and item[k].strip()), None)
+        task = pick(TASK_KEYS)
+        if not task:
+            return item
+        return {"assignee": pick(OWNER_KEYS), "task": task, "deadline_text": pick(DEADLINE_KEYS)}
+    # Mục sự kiện dạng object (issue/description...) không đổi: đã đo trên bản demo,
+    # chọn một giá trị trong object cho ra câu sai mục hoặc mẩu vô nghĩa.
+    return item
 
 
 def parse_extraction(raw: str) -> Extraction:
@@ -246,6 +310,10 @@ def parse_extraction(raw: str) -> Extraction:
         if not isinstance(obj[section], list):
             raise ValueError("Extraction sections must be arrays")
         for item in obj[section]:
+            coerced = coerce_item(section, item)
+            if coerced is not item:
+                invalid += 1  # sai cấu trúc nhưng đã phục hồi được giá trị
+                item = coerced
             if isinstance(item, str) and section != "actions" and re.search(NAMED_ASSIGNMENT, item, re.I):
                 result.actions.extend(actions_from_quote(item))
                 continue
@@ -377,6 +445,9 @@ def merge_results(parts: list[SummaryData]) -> SummaryData:
         key = (owner_key(action), normalize(action.task))
         if action.deadline_text:
             deadlines.setdefault(key, set()).add(normalize(action.deadline_text))
+    # Model hay chép câu giao việc vào "decisions"; câu đó đã nằm ở phần phân công
+    tasks = [normalize(a.task) for a in merged.actions if len(a.task.split()) >= 3]
+    merged.decisions = [d for d in merged.decisions if not any(contains(d.text, t) for t in tasks)]
     for action in merged.actions:
         key = (owner_key(action), normalize(action.task))
         if len(deadlines.get(key, set())) > 1:

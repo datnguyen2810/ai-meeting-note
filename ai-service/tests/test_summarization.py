@@ -270,5 +270,47 @@ class SummaryTests(unittest.TestCase):
         self.assertNotIn("### Phân công", output)
 
 
+# Bản ghi demo 3 người (lời ASR thật, giữ lỗi nghe nhầm), đoạn từ 00:57 đến 01:45
+DEMO = (
+    "vậy mình quyết định thế này nhóm sẽ giữ mô hình hiện tại cho buổi báo cáo không đổi sang mô hình mới vì không đủ "
+    "thời gian kiểm thử. mình đồng ý mình sẽ thu thêm năm đoạn ghi âm của người thật để đánh giá lại phần phân biệt "
+    "người nói hạn là thứ sáu tuần này còn mình sẽ tối ưu trợ lý hỏi đáp để thời gian trả lời dưới mười giây đồng thời "
+    "hiển thị đoạn nguồn bên cạnh câu trả lời. ngoài ra tuấn sẽ phụ trách viết báo cáo và làm bài trình chiếu hạn nộp là "
+    "ngày tới mình sẽ nhấn riêng cho tuấn sau buổi học."
+)
+
+
+class DemoMeetingTests(unittest.TestCase):
+    """Lỗi đo được trên bản demo: model trả phân công dạng object, bỏ các câu 'mình sẽ'."""
+
+    def test_first_person_commitments_recovered_with_spoken_deadline(self):
+        data = explicit_source_facts(DEMO)
+        tasks = {(a.assignee, a.task, a.deadline_text) for a in data.actions}
+        self.assertIn(("mình", "thu thêm năm đoạn ghi âm của người thật để đánh giá lại phần phân biệt người nói",
+                       "thứ sáu tuần này"), tasks)
+        self.assertIn(("mình", "tối ưu trợ lý hỏi đáp để thời gian trả lời dưới mười giây đồng thời hiển thị đoạn "
+                               "nguồn bên cạnh câu trả lời", None), tasks)
+        # "mình quyết định ... nhóm sẽ" không phải tự nhận việc
+        self.assertFalse(any("giữ mô hình" in a.task for a in data.actions))
+
+    def test_object_actions_from_model_are_kept(self):
+        raw = json.dumps(payload(
+            decisions=["tuấn sẽ phụ trách viết báo cáo và làm bài trình chiếu hạn nộp là ngày tới"],
+            actions=[{"name": "tuấn", "work": "viết báo cáo và làm bài trình chiếu", "deadline": "ngày tới"}],
+        ), ensure_ascii=False)
+        data = merge_results([validate_extraction(parse_extraction(raw), DEMO), explicit_source_facts(DEMO)])
+        tuan = [a for a in data.actions if a.assignee == "tuấn"]
+        self.assertEqual([(a.task, a.deadline_text) for a in tuan], [("viết báo cáo và làm bài trình chiếu", "ngày tới")])
+        self.assertTrue(data.warnings)  # sai cấu trúc vẫn được báo
+        # Câu giao việc model chép vào decisions không lặp lại ở mục Quyết định
+        self.assertEqual(data.decisions, [])
+
+    def test_named_assignment_stops_before_next_first_person_clause(self):
+        raw = json.dumps(payload(actions=["tuấn sẽ phụ trách viết báo cáo và làm bài trình chiếu hạn nộp là ngày tới"]),
+                         ensure_ascii=False)
+        data = validate_extraction(parse_extraction(raw), DEMO)
+        self.assertEqual([a.deadline_text for a in data.actions if a.assignee == "tuấn"], ["ngày tới"])
+
+
 if __name__ == "__main__":
     unittest.main()

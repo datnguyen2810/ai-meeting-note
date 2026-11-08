@@ -2,14 +2,30 @@ import os
 import torch
 import numpy as np
 import librosa
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import silhouette_score
 
-HF_TOKEN = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_TOKEN")
+def _hf_token() -> Optional[str]:
+    """Token Hugging Face: biến môi trường HF_TOKEN, hoặc token đã lưu bằng
+    `hf auth login` (nằm trong thư mục người dùng, ngoài repo)."""
+    token = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_TOKEN")
+    if token:
+        return token
+    try:
+        from huggingface_hub import get_token
+        return get_token()
+    except Exception:
+        return None
+
 
 _diarize_pipeline = None
+
+# Batch mặc định 32 cần thêm ~1,6 GB VRAM khi chạy, đẩy GPU 6 GB (đã có 3 model
+# ~4,9 GB) lên 5,9 GB. Batch 8: +0,4 GB, cùng kết quả, không chậm hơn (đo trên
+# file demo 120 s, RTX 4050: 4,6 s so với 6,8 s).
+PYANNOTE_BATCH_SIZE = 8
 
 
 def get_diarization_pipeline(device: str = "cpu"):
@@ -17,6 +33,7 @@ def get_diarization_pipeline(device: str = "cpu"):
     if _diarize_pipeline is not None:
         return _diarize_pipeline
 
+    HF_TOKEN = _hf_token()
     if HF_TOKEN:
         try:
             from pyannote.audio import Pipeline
@@ -27,6 +44,8 @@ def get_diarization_pipeline(device: str = "cpu"):
             )
             if pipeline is not None:
                 pipeline.to(torch.device(device))
+                pipeline.embedding_batch_size = PYANNOTE_BATCH_SIZE
+                pipeline.segmentation_batch_size = PYANNOTE_BATCH_SIZE
                 _diarize_pipeline = pipeline
                 return _diarize_pipeline
         except Exception as e:
@@ -72,20 +91,66 @@ def merge_consecutive_speaker_turns(
     return merged
 
 
-def run_diarization(audio_path: str, max_speakers: int = 4, device: str = "cpu") -> List[Dict[str, Any]]:
+# Mã bộ phân người trả về cho Java/giao diện; giao diện tự đổi chữ theo mã này
+PYANNOTE_ENGINE = "pyannote/speaker-diarization-community-1"
+ACOUSTIC_ENGINE = "acoustic-pitch-mfcc"
+
+
+def run_diarization(
+    audio_path: str,
+    max_speakers: int = 4,
+    device: str = "cpu",
+    num_speakers: Optional[int] = None,
+) -> List[Dict[str, Any]]:
+    """Như diarize_with_engine nhưng chỉ trả danh sách lượt nói."""
+    return diarize_with_engine(audio_path, max_speakers, device, num_speakers)[0]
+
+
+def diarize_with_engine(
+    audio_path: str,
+    max_speakers: int = 4,
+    device: str = "cpu",
+    num_speakers: Optional[int] = None,
+) -> Tuple[List[Dict[str, Any]], str, List[str]]:
     """
-    Phân đoạn người nói: trả về danh sách các đoạn:
-    [{ "start": 0.5, "end": 4.2, "speaker_raw": "SPEAKER_00" }, ...]
+    Phân đoạn người nói. Trả về (các lượt nói, mã bộ phân người đã dùng, cảnh báo).
+    Mỗi lượt: { "start": 0.5, "end": 4.2, "speaker_id": "speaker_1", "label": "Người 1" }.
+
+    Dùng pyannote khi đã cài và có HF_TOKEN; ngược lại dùng bộ phân cụm pitch/MFCC.
+    num_speakers: số người chính xác do người dùng cung cấp. Khi có, bỏ qua bước
+    tự đoán số người (bước này kém tin cậy với đặc trưng pitch/MFCC) và dùng đúng
+    số này. Khi None, tự đoán trong giới hạn max_speakers như trước.
     """
+    warnings: List[str] = []
     pipeline = get_diarization_pipeline(device)
 
     if pipeline is not None:
         try:
-            print(f"[INFO] Dang phan doan nguoi noi voi pyannote (max_speakers={max_speakers})...")
-            diarization = pipeline(audio_path, max_speakers=max_speakers)
+            # Đưa dạng sóng đã đọc sẵn thay vì đường dẫn: pyannote 4.x tự giải mã
+            # file qua thư viện cần FFmpeg, mà máy phát triển chưa cài FFmpeg.
+            y, sr = librosa.load(audio_path, sr=16000, mono=True)
+            audio_input = {"waveform": torch.from_numpy(y).unsqueeze(0), "sample_rate": sr}
+            if num_speakers:
+                print(f"[INFO] Dang phan doan nguoi noi voi pyannote (num_speakers={num_speakers})...")
+                diarization = pipeline(audio_input, num_speakers=num_speakers)
+            else:
+                print(f"[INFO] Dang phan doan nguoi noi voi pyannote (max_speakers={max_speakers})...")
+                diarization = pipeline(audio_input, max_speakers=max_speakers)
+            if torch.cuda.is_available():
+                # Trả bộ nhớ đệm của pyannote trước khi PhoWhisper/Qwen chạy tiếp
+                torch.cuda.empty_cache()
+
+            # pyannote.audio 4.x trả đối tượng có speaker_diarization và
+            # exclusive_speaker_diarization (không chồng tiếng, hợp để ghép với ASR);
+            # bản cũ trả thẳng Annotation. Chưa chạy thử trên máy này.
+            annotation = (
+                getattr(diarization, "exclusive_speaker_diarization", None)
+                or getattr(diarization, "speaker_diarization", None)
+                or diarization
+            )
 
             raw_segments = []
-            for turn, _, speaker in diarization.itertracks(yield_label=True):
+            for turn, _, speaker in annotation.itertracks(yield_label=True):
                 raw_segments.append({
                     "start": round(float(turn.start), 2),
                     "end": round(float(turn.end), 2),
@@ -95,12 +160,15 @@ def run_diarization(audio_path: str, max_speakers: int = 4, device: str = "cpu")
             if raw_segments:
                 # Gộp các đoạn nói liên tiếp của cùng người nếu khoảng ngắt ngắn
                 merged = merge_consecutive_speaker_turns(raw_segments, max_gap=0.5, max_duration=18.0)
-                return _assign_speaker_labels(merged)
+                return _assign_speaker_labels(merged), PYANNOTE_ENGINE, warnings
+            warnings.append("pyannote không trả về lượt nói nào; đã dùng bộ phân cụm dự phòng.")
         except Exception as e:
             print(f"[WARN] Loi trong qua trinh chay pyannote: {e}. Chuyen sang fallback.")
+            warnings.append("pyannote gặp lỗi; đã dùng bộ phân cụm dự phòng.")
 
     # Fallback phan doan nguoi noi bang dac trung am hoc (Pitch F0 + MFCCs + Clustering)
-    return _acoustic_cluster_diarizer(audio_path, max_speakers=max_speakers)
+    turns = _acoustic_cluster_diarizer(audio_path, max_speakers=max_speakers, num_speakers=num_speakers)
+    return turns, ACOUSTIC_ENGINE, warnings
 
 
 def _assign_speaker_labels(raw_segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -133,7 +201,11 @@ def _assign_speaker_labels(raw_segments: List[Dict[str, Any]]) -> List[Dict[str,
     return formatted_segments
 
 
-def _acoustic_cluster_diarizer(audio_path: str, max_speakers: int = 4) -> List[Dict[str, Any]]:
+def _acoustic_cluster_diarizer(
+    audio_path: str,
+    max_speakers: int = 4,
+    num_speakers: Optional[int] = None,
+) -> List[Dict[str, Any]]:
     """
     Bo phan doan nguoi noi am hoc thong minh (Acoustic Speaker Clustering Diarizer).
     Hoat dong doc lap, khong can HF_TOKEN va khong can mang Internet.
@@ -202,7 +274,18 @@ def _acoustic_cluster_diarizer(audio_path: str, max_speakers: int = 4) -> List[D
         best_k = 1
         best_labels = [0] * len(raw_segments)
 
-        if len(raw_segments) >= 4:
+        if num_speakers:
+            # Người dùng đã cho biết số người: phân cụm đúng số đó, không tự đoán.
+            # Không thể có nhiều cụm hơn số đoạn tiếng nói tìm được.
+            best_k = max(1, min(int(num_speakers), len(raw_segments)))
+            if best_k < num_speakers:
+                print(f"[WARN] Chi tim thay {len(raw_segments)} doan tieng noi, it hon {num_speakers} nguoi da nhap.")
+            if best_k > 1:
+                X_scaled = StandardScaler().fit_transform(np.array(features))
+                best_labels = AgglomerativeClustering(
+                    n_clusters=best_k, metric="euclidean", linkage="ward"
+                ).fit_predict(X_scaled)
+        elif len(raw_segments) >= 4:
             X = np.array(features)
             scaler = StandardScaler()
             X_scaled = scaler.fit_transform(X)
@@ -238,7 +321,8 @@ def _acoustic_cluster_diarizer(audio_path: str, max_speakers: int = 4) -> List[D
                 best_k = 2
                 best_labels = labels_2
 
-        print(f"[INFO] Acoustic diarizer xac dinh {best_k} nguoi noi.")
+        source = "theo so nguoi da nhap" if num_speakers else "tu doan"
+        print(f"[INFO] Acoustic diarizer xac dinh {best_k} nguoi noi ({source}).")
 
         # Gan cluster vao speaker_raw theo thu tu xuat hien
         cluster_order = {}
@@ -254,11 +338,7 @@ def _acoustic_cluster_diarizer(audio_path: str, max_speakers: int = 4) -> List[D
         merged = merge_consecutive_speaker_turns(raw_segments, max_gap=0.5, max_duration=18.0)
         return _assign_speaker_labels(merged)
     except Exception as e:
-        print(f"[ERROR] Loi acoustic diarizer: {e}")
-        return [{
-            "start": 0.0,
-            "end": 10.0,
-            "speaker_id": "speaker_1",
-            "label": "Người 1",
-            "attribution_status": "assigned"
-        }]
+        # Báo lỗi thật thay vì trả về một lượt nói giả 0-10 giây; pipeline sẽ ghi
+        # rõ là không phân được người nói.
+        print(f"[ERROR] Loi acoustic diarizer: {e!r}")
+        raise RuntimeError(f"Bộ phân người dự phòng gặp lỗi: {e!r}") from e

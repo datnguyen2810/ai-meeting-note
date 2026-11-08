@@ -1,110 +1,139 @@
-# 🎙️ AI Meeting Note - Hệ Thống Ghi Chép & Tóm Tắt Cuộc Họp 
+# 🎙️ AI Meeting Note - Hệ Thống Ghi Chép & Tóm Tắt Cuộc Họp
 
 > **Đồ án môn học:** Hệ thống thông minh (HTTM) - Học viện Công nghệ Bưu chính Viễn thông (PTIT)
 
+Ghi âm hoặc tải lên file cuộc họp tiếng Việt → phiên âm theo từng người nói → tóm tắt (mục tiêu, kết quả, vấn đề, quyết định, phân công) → hỏi đáp về nội dung cuộc họp, có trích dẫn mốc thời gian.
+
 ---
-
-<!-- ## 👥 Thành Viên Nhóm
-
-| STT | Họ và Tên | Mã Sinh Viên | Vai trò / Phụ trách |
-| :-: | :--- | :---: | :--- |
-| 1 | Nguyễn Văn A (Trưởng nhóm) | B21DCCNxxx | Backend & AI Service |
-| 2 | Thành viên 2 | B21DCCNxxx | Frontend React |
-| 3 | Thành viên 3 | B21DCCNxxx | Data & Báo cáo |
-
-*(Vui lòng cập nhật lại thông tin chính xác của nhóm)*
-
---- -->
 
 ## 🏗️ Kiến Trúc Hệ Thống
 
-Dự án được xây dựng theo mô hình Monorepo gồm 3 thành phần chính:
-
 ```text
-AI_Meeting_Note/
-├── ai-service/        # Dịch vụ AI (FastAPI + HuggingFace PhoWhisper ASR)
-├── backend/           # Máy chủ điều phối & nghiệp vụ (Java Spring Boot)
-├── frontend/          # Giao diện người dùng (ReactJS + Vite)
-├── data_test/         # Dữ liệu âm thanh kiểm thử mẫu
-└── README.md          # Hướng dẫn dự án
+Trình duyệt :5173 (React)
+  ├─ /api/...  → Java Spring Boot :8080 → PostgreSQL (dùng chung cả nhóm)
+  │                     └─ gọi Python :8000 để phân người nói, tóm tắt, hỏi đáp
+  └─ ws / http → Python FastAPI :8000 (phụ đề trực tiếp, phiên âm file)
 ```
 
-### 🛠️ Công Nghệ Sử Dụng
+| Thư mục | Công nghệ | Vai trò |
+| --- | --- | --- |
+| `frontend/` | React 19, Vite 8 | Giao diện, ghi âm, phân người + chat |
+| `backend/` | Java 21, Spring Boot 4, Maven | Đăng nhập JWT, lưu cuộc họp, audio, kết quả |
+| `ai-service/` | Python 3.11, FastAPI, PyTorch, Transformers | ASR, phân người nói, tóm tắt, hỏi đáp |
+| `data_test/` | | Audio mẫu; `demo_meeting/` là cuộc họp 3 người có đáp án |
 
-- **Frontend:** React 18, Vite, TailwindCSS / CSS Modules, Axios
-- **Backend:** Java 17+, Spring Boot, Spring Web, Maven
-- **AI Service:** Python 3.10+, FastAPI, Uvicorn, PyTorch, HuggingFace Transformers (`vinai/PhoWhisper-small`), Librosa
+Model AI (tự tải từ Hugging Face lần chạy đầu, tổng vài GB):
+
+- Phụ đề trực tiếp: `nguyenvulebinh/wav2vec2-base-vietnamese-250h`
+- Phiên âm file: `vinai/PhoWhisper-small`
+- Tóm tắt + hỏi đáp: `Qwen/Qwen2.5-1.5B-Instruct`
+- Phân người nói: `pyannote/speaker-diarization-community-1` nếu đã cài (tùy chọn); nếu không, dùng bộ phân cụm pitch/MFCC có sẵn
 
 ---
 
-## 🚀 Hướng Dẫn Cài Đặt & Chạy Dự Án
+## 🚀 Chạy demo trên máy
 
-### 1. Clone repository về máy
+### 0. Yêu cầu
 
-```bash
+- **JDK 21**, **Node.js 22.12+**, **Python 3.11**
+- Khuyến nghị GPU NVIDIA ≥ 6 GB VRAM. Chạy CPU vẫn được nhưng xử lý một cuộc họp mất vài phút.
+- Lần đầu cần Internet để tải model.
+
+### 1. Lấy code
+
+```powershell
 git clone https://github.com/datnguyen2810/ai-meeting-note.git
 cd ai-meeting-note
+git checkout feat/speaker-count-eval   # nhánh có phân người + chatbot (bỏ qua nếu đã gộp vào main)
 ```
 
----
+### 2. Tạo file `.env` (cho backend)
 
-### 2. Khởi chạy AI Service (FastAPI)
+```powershell
+copy .env.example .env
+```
 
-```bash
+Điền `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`. **Giá trị thật xin trong nhóm chat**, không commit `.env` lên Git.
+
+> ⚠️ Cả nhóm dùng chung một database và backend tự cập nhật schema (`ddl-auto=update`). Đừng sửa entity Java rồi chạy backend khi chưa báo nhóm.
+
+### 3. AI service (terminal 1)
+
+```powershell
 cd ai-service
-
-# Tạo môi trường ảo
 python -m venv venv
-
-# Kích hoạt môi trường ảo:
-# Windows (PowerShell):
-.\venv\Scripts\Activate.ps1
-# Windows (CMD):
-.\venv\Scripts\activate.bat
-# Linux/macOS:
-source venv/bin/activate
-
-# Cài đặt thư viện phụ thuộc
-pip install -r requirements.txt
-
-# Khởi chạy server FastAPI
-uvicorn main:app --reload --port 8000
+.\venv\Scripts\python.exe -m pip install -r requirements.txt
+.\venv\Scripts\python.exe -m uvicorn main:app --port 8000
 ```
-> 📍 AI Service sẽ chạy tại: `http://localhost:8000` (Tài liệu API Swagger: `http://localhost:8000/docs`)
 
----
+- **Máy có GPU NVIDIA:** cài thêm torch bản CUDA cho đúng driver theo <https://pytorch.org/get-started/locally/>, ví dụ:
+  `.\venv\Scripts\python.exe -m pip install torch --index-url https://download.pytorch.org/whl/cu124 --force-reinstall`.
+  Log khởi động in thiết bị đang dùng (`cuda:0` hoặc `cpu`).
+- Đợi dòng `Application startup complete` rồi mới thử. Tài liệu API: <http://localhost:8000/docs>.
+- `requirements.txt` chưa khớp hoàn toàn venv của người viết; nếu cài lỗi phiên bản, báo lại trong nhóm.
 
-### 3. Khởi chạy Backend (Spring Boot)
+**Tùy chọn — dùng pyannote để phân người nói chính xác hơn:** cần torch ≥ 2.8 (nên tạo venv riêng), cài `pyannote.audio` và `torchaudio`, vào trang model `pyannote/speaker-diarization-community-1` trên Hugging Face bấm đồng ý điều khoản, rồi chạy `hf auth login`. Không làm bước này thì hệ thống tự dùng bộ pitch/MFCC, vẫn demo được.
 
-Yêu cầu: Máy đã cài đặt **JDK 17** trở lên.
+### 4. Backend (terminal 2)
 
-```bash
+```powershell
 cd backend
-
-# Dành cho Windows:
 .\mvnw.cmd spring-boot:run
-
-# Dành cho Linux/macOS:
-./mvnw spring-boot:run
 ```
-> 📍 Backend API sẽ chạy tại: `http://localhost:8080`
+
+Chạy tại `http://localhost:8080`.
+
+### 5. Frontend (terminal 3)
+
+```powershell
+cd frontend
+npm ci
+npm run dev -- --port 5173 --strictPort
+```
+
+Mở <http://localhost:5173>. Dùng Chrome/Edge; micro chỉ hoạt động trên `localhost` hoặc HTTPS.
 
 ---
 
-### 4. Khởi chạy Frontend (React + Vite)
+## 🎬 Kịch bản demo
 
-Yêu cầu: Máy đã cài đặt **Node.js** (v18+).
+1. Đăng ký tài khoản (hoặc đăng nhập) → vào Dashboard.
+2. Tab **"Phân vai người nói & Chat"**:
+   - **Bước 1 – Âm thanh:** chọn file `data_test/demo_meeting/demo_meeting.wav` (cuộc họp 3 người, 2 phút), hoặc bấm ghi âm trực tiếp từ micro.
+   - **Bước 2 – Xử lý:** ở ô **"Số người"** chọn **3** rồi bấm xử lý. Biết số người thì nên chọn: chế độ "Tự động" với bộ pitch/MFCC thường chỉ tách ra 2 người.
+3. Xem kết quả: biên bản tô màu theo người nói (bấm vào đoạn để nghe lại), bản tóm tắt, danh sách người nói.
+4. Hỏi chatbot bằng các câu gợi ý, ví dụ: "Mục tiêu cuộc họp là gì?", "Nhóm đã quyết định gì?", "Người 2 nói gì?", "Có bao nhiêu người tham gia?". Câu trả lời kèm trích dẫn mốc thời gian.
+5. Cột trái là lịch sử cuộc họp; bấm **"Mở và hỏi đáp"** để mở lại cuộc họp cũ.
 
-```bash
-cd frontend
+Đáp án để đối chiếu: `data_test/demo_meeting/demo_meeting_reference.txt`.
 
-# Cài đặt node_modules
-npm install
+Các tab khác: **"Cuộc họp trực tiếp"** (phụ đề realtime qua micro, dừng lại sẽ phiên âm + tóm tắt cả bản ghi) và **"Tải file & Phân tích"** (phiên âm + tóm tắt một file, không phân người).
 
-# Khởi chạy chế độ phát triển
-npm run dev
+### Lỗi thường gặp
+
+| Hiện tượng | Cách xử lý |
+| --- | --- |
+| Xử lý báo lỗi kết nối / 500 | AI service chưa chạy xong hoặc chưa in `Application startup complete` |
+| Báo đang có phiên trực tiếp (409) | Dừng phiên ở tab "Cuộc họp trực tiếp" rồi thử lại |
+| Bị đăng xuất liên tục | Kiểm tra `JWT_SECRET` trong `.env`, đăng nhập lại |
+| Không phát lại được audio của cuộc họp do máy khác tạo | Bình thường: file audio chỉ lưu trên máy đã upload, DB thì dùng chung |
+| File ghi âm lỗi định dạng | Chỉ nhận WAV/MP3/FLAC/OGG (máy chưa cài FFmpeg) |
+| Hết VRAM | Tắt ứng dụng khác dùng GPU; ba model chiếm khoảng 4,7 GB |
+
+---
+
+## 🧪 Kiểm tra trước khi push
+
+```powershell
+# AI (không nạp model)
+cd ai-service; .\venv\Scripts\python.exe -m unittest discover -s tests -p "test_*.py"
+# Frontend
+cd frontend; npm run build; npm run lint
+# Backend
+cd backend; .\mvnw.cmd -q -o compile
 ```
-> 📍 Mở trình duyệt truy cập: `http://localhost:5173`
+
+Chi tiết kiến trúc, API và cách đánh giá model: xem `AGENTS.md`.
 
 ---
 
@@ -112,14 +141,17 @@ npm run dev
 
 1. **Không commit đè trực tiếp lên `main`** khi phát triển tính năng mới.
 2. Tạo nhánh riêng cho mỗi tính năng hoặc thành viên:
+
    ```bash
    git checkout -b feature/ten-tinh-nang
-   # hoặc
-   git checkout -b dev-frontend
    ```
+
 3. Sau khi hoàn thiện, tạo **Pull Request (PR)** trên GitHub để trưởng nhóm review trước khi gộp vào nhánh `main`.
 4. Luôn cập nhật code mới nhất từ `main` trước khi code:
+
    ```bash
    git checkout main
    git pull origin main
    ```
+
+5. Không commit `.env`, `venv/`, `node_modules/`, `uploads/`, model weights hay file audio cá nhân.

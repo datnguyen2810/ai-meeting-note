@@ -32,3 +32,14 @@ Không đổi cấu hình ASR mặc định dựa trên thử nghiệm này. Ch�
 Để kiểm thử lại bằng micro: khởi động lại AI Service, tải lại trang để nạp worklet mới, đọc cùng đoạn, dừng và tải WAV. So sánh các cấu hình trên WAV đó, nghe và viết reference một lần; không đọc lại mỗi cấu hình vì tốc độ nói, vị trí micro và tiếng ồn thay đổi.
 
 Chưa thu âm từ micro hoặc thao tác trình duyệt thật trong lượt kiểm tra của agent. Kiểm tra audio worklet dùng môi trường mô phỏng; việc flush sửa mất mẫu cuối, không chứng minh đã hết lỗi nhận diện tên/ngày hay lỗi giữa câu.
+
+## ASR từng lượt nói sau phân người (`/api/process-meeting`)
+
+Pipeline phân người trước rồi chạy PhoWhisper trên từng lượt. Đo trên `data_test/demo_meeting/demo_meeting.wav` (giọng tổng hợp edge-tts, 3 người, có đáp án thời gian và lời; tạo bằng `make_demo_audio.py` cùng thư mục):
+
+- **Cắt audio sát mép lượt làm PhoWhisper bỏ từ chỉ số.** Cùng một lượt, cắt sát: "thu thêm đoạn ghi âm… hạn là thứ tuần này", "mất khoảng giây"; nới mỗi bên 0,2 s: "thu thêm năm đoạn… thứ sáu tuần này", "mất khoảng mười lăm giây". Lặp lại ổn định ở 0,2 và 0,3 s; 0,1 s chưa đủ. Một lượt vẫn mất "ngày hai mươi tháng mười một" ở mọi mức nới, nên đây là cải thiện, không phải đã hết lỗi.
+- Wav2Vec2 trên cùng đoạn nghe đủ các số, xác nhận âm thanh có số và lỗi nằm ở ASR.
+- Mẩu ngắn ở chỗ chuyển người (khoảng 1 s) bị gán nhầm người và cắt giữa từ ("xuất kết quả" thành "và giúp" + "quả ra tiệp"). Nhập mẩu dưới 1,5 s vào lượt bên cạnh rồi mới ASR thì hết các lỗi này trên file demo.
+- Logic ở `meeting_processing/turns.py` (`prepare_turns`, `padded_bounds`): nới tối đa 0,2 s nhưng không quá nửa khoảng nghỉ tới lượt bên cạnh để không lẫn lời người khác. Mốc thời gian lưu vẫn là mốc gốc.
+
+Chấm phân người (đã dọn lượt nói, nhập 3 người): gán đúng 97,4% thời gian tiếng nói, bỏ sót 2,6%, 0/13 lượt sai; kết quả thô trước khi dọn là 87,8% và 10,5%. Chạy lại bằng `python -m tests.evaluate_diarization` (thêm `--raw` để xem kết quả thô). Đây là giọng tổng hợp sạch; phải đo lại trên bản ghi người thật gán nhãn tay.

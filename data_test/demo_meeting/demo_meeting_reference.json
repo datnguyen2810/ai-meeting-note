@@ -1,0 +1,154 @@
+{
+  "audio": "demo_meeting.wav",
+  "sample_rate": 24000,
+  "duration_seconds": 120.09,
+  "note": "Giọng tổng hợp edge-tts; mốc thời gian lấy từ lúc ghép, sai số khoảng 0,05 giây ở biên.",
+  "absent_but_mentioned": [
+    "Tuấn"
+  ],
+  "speakers": [
+    {
+      "speaker_id": "speaker_1",
+      "label": "Người 1",
+      "name": "Hà",
+      "voice": "vi-VN-HoaiMyNeural",
+      "stretch": 1.0,
+      "first_start_seconds": 0.5
+    },
+    {
+      "speaker_id": "speaker_2",
+      "label": "Người 2",
+      "name": "Khoa",
+      "voice": "vi-VN-NamMinhNeural",
+      "stretch": 1.0,
+      "first_start_seconds": 11.65
+    },
+    {
+      "speaker_id": "speaker_3",
+      "label": "Người 3",
+      "name": "Lan",
+      "voice": "vi-VN-HoaiMyNeural",
+      "stretch": 1.18,
+      "first_start_seconds": 20.7
+    }
+  ],
+  "segments": [
+    {
+      "segment_id": "ref_01",
+      "speaker_id": "speaker_1",
+      "label": "Người 1",
+      "name": "Hà",
+      "start_seconds": 0.5,
+      "end_seconds": 10.95,
+      "text": "Chào mọi người, hôm nay mình họp nhanh để chốt tiến độ đồ án ghi chú cuộc họp trước buổi báo cáo. Mục tiêu là thống nhất phần nào đã xong, phần nào còn thiếu và phân công cho tuần tới."
+    },
+    {
+      "segment_id": "ref_02",
+      "speaker_id": "speaker_2",
+      "label": "Người 2",
+      "name": "Khoa",
+      "start_seconds": 11.65,
+      "end_seconds": 19.8,
+      "text": "Bên mình đã hoàn thành phần nhận dạng giọng nói. Hệ thống chuyển được tệp ghi âm thành văn bản tiếng Việt, độ chính xác khá ổn với giọng đọc rõ ràng."
+    },
+    {
+      "segment_id": "ref_03",
+      "speaker_id": "speaker_3",
+      "label": "Người 3",
+      "name": "Lan",
+      "start_seconds": 20.7,
+      "end_seconds": 29.94,
+      "text": "Phần giao diện cũng đã xong trang lịch sử cuộc họp. Người dùng có thể mở lại bản ghi, xem tóm tắt và xuất kết quả ra tệp văn bản."
+    },
+    {
+      "segment_id": "ref_04",
+      "speaker_id": "speaker_1",
+      "label": "Người 1",
+      "name": "Hà",
+      "start_seconds": 30.54,
+      "end_seconds": 37.75,
+      "text": "Tốt quá, cảm ơn hai bạn. Vậy hiện giờ nhóm mình đang vướng ở chỗ nào nhiều nhất, có việc gì cần xử lý gấp không?"
+    },
+    {
+      "segment_id": "ref_05",
+      "speaker_id": "speaker_2",
+      "label": "Người 2",
+      "name": "Khoa",
+      "start_seconds": 38.75,
+      "end_seconds": 46.45,
+      "text": "Vấn đề lớn nhất là phân biệt người nói. Khi hai người có giọng gần giống nhau, hệ thống đôi khi gán nhầm lời của người này sang người kia."
+    },
+    {
+      "segment_id": "ref_06",
+      "speaker_id": "speaker_3",
+      "label": "Người 3",
+      "name": "Lan",
+      "start_seconds": 47.25,
+      "end_seconds": 56.81,
+      "text": "Ngoài ra trợ lý hỏi đáp vẫn còn chậm. Mỗi câu hỏi mất khoảng mười lăm giây mới trả lời, nên lúc trình diễn có thể làm thầy phải chờ lâu."
+    },
+    {
+      "segment_id": "ref_07",
+      "speaker_id": "speaker_1",
+      "label": "Người 1",
+      "name": "Hà",
+      "start_seconds": 57.51,
+      "end_seconds": 65.4,
+      "text": "Vậy mình quyết định thế này. Nhóm sẽ giữ mô hình hiện tại cho buổi báo cáo, không đổi sang mô hình mới vì không đủ thời gian kiểm thử."
+    },
+    {
+      "segment_id": "ref_08",
+      "speaker_id": "speaker_2",
+      "label": "Người 2",
+      "name": "Khoa",
+      "start_seconds": 66.3,
+      "end_seconds": 72.67,
+      "text": "Mình đồng ý. Mình sẽ thu thêm năm đoạn ghi âm của người thật để đánh giá lại phần phân biệt người nói, hạn là thứ Sáu tuần này."
+    },
+    {
+      "segment_id": "ref_09",
+      "speaker_id": "speaker_3",
+      "label": "Người 3",
+      "name": "Lan",
+      "start_seconds": 73.27,
+      "end_seconds": 80.48,
+      "text": "Còn mình sẽ tối ưu trợ lý hỏi đáp để thời gian trả lời dưới mười giây, đồng thời hiển thị đoạn nguồn bên cạnh câu trả lời."
+    },
+    {
+      "segment_id": "ref_10",
+      "speaker_id": "speaker_1",
+      "label": "Người 1",
+      "name": "Hà",
+      "start_seconds": 81.48,
+      "end_seconds": 90.52,
+      "text": "Được. Ngoài ra Tuấn sẽ phụ trách viết báo cáo và làm bài trình chiếu, hạn nộp là ngày hai mươi tháng mười một. Mình sẽ nhắn riêng cho Tuấn sau buổi họp."
+    },
+    {
+      "segment_id": "ref_11",
+      "speaker_id": "speaker_2",
+      "label": "Người 2",
+      "name": "Khoa",
+      "start_seconds": 91.32,
+      "end_seconds": 97.53,
+      "text": "Nhân tiện, mình đề xuất cả nhóm chạy thử toàn bộ hệ thống trên máy của Lan vào tối thứ Năm, để kiểm tra trước khi báo cáo."
+    },
+    {
+      "segment_id": "ref_12",
+      "speaker_id": "speaker_3",
+      "label": "Người 3",
+      "name": "Lan",
+      "start_seconds": 98.23,
+      "end_seconds": 105.98,
+      "text": "Tối thứ Năm mình rảnh. Mình sẽ chuẩn bị sẵn một cuộc họp mẫu trong lịch sử để phòng khi trình diễn trực tiếp bị lỗi."
+    },
+    {
+      "segment_id": "ref_13",
+      "speaker_id": "speaker_1",
+      "label": "Người 1",
+      "name": "Hà",
+      "start_seconds": 106.88,
+      "end_seconds": 119.29,
+      "text": "Vậy chốt lại: Khoa đánh giá phân biệt người nói trước thứ Sáu, Lan tối ưu trợ lý hỏi đáp, Tuấn làm báo cáo trước ngày hai mươi tháng mười một, và cả nhóm chạy thử vào tối thứ Năm. Cảm ơn mọi người, kết thúc buổi họp."
+    }
+  ]
+}

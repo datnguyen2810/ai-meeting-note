@@ -95,10 +95,26 @@ public class MeetingService {
             .collect(Collectors.toList());
     }
 
-    public MeetingResponse getMeetingById(Long id) {
+    public MeetingResponse getMeetingById(Long id, String username) {
+        return toResponse(findAccessibleMeeting(id, username));
+    }
+
+    /**
+     * Cuộc họp chưa xóa mà người dùng là người tổ chức hoặc thành viên; ngược lại báo lỗi.
+     * Dùng chung cho các API đọc dữ liệu cuộc họp (chi tiết, người nói, đoạn, chat, audio).
+     * Báo lỗi 400 thay vì 403 vì frontend coi mọi 403 là hết phiên và đăng xuất.
+     */
+    public Meeting findAccessibleMeeting(Long id, String username) {
         Meeting meeting = meetingRepository.findByIdAndDeletedAtIsNull(id)
             .orElseThrow(() -> new RuntimeException("Không tìm thấy cuộc họp"));
-        return toResponse(meeting);
+        if (meeting.getOrganizer() != null && meeting.getOrganizer().getUsername().equals(username)) {
+            return meeting;
+        }
+        User user = findUserByUsername(username);
+        if (!participantRepository.existsByMeetingAndUser(meeting, user)) {
+            throw new RuntimeException("Bạn không có quyền xem cuộc họp này");
+        }
+        return meeting;
     }
 
     @Transactional
@@ -159,9 +175,8 @@ public class MeetingService {
         return toParticipantResponse(participant);
     }
 
-    public List<ParticipantResponse> getParticipants(Long meetingId) {
-        Meeting meeting = meetingRepository.findByIdAndDeletedAtIsNull(meetingId)
-            .orElseThrow(() -> new RuntimeException("Không tìm thấy cuộc họp"));
+    public List<ParticipantResponse> getParticipants(Long meetingId, String username) {
+        Meeting meeting = findAccessibleMeeting(meetingId, username);
         return participantRepository.findByMeeting(meeting).stream()
             .map(this::toParticipantResponse)
             .collect(Collectors.toList());
@@ -217,9 +232,7 @@ public class MeetingService {
             Path uploadPath = Paths.get(audioUploadDir, String.valueOf(meeting.getId()));
             Files.createDirectories(uploadPath);
 
-            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-            String storedFilename = timestamp + "_" + (originalFilename != null ? originalFilename : "audio.wav");
-            Path filePath = uploadPath.resolve(storedFilename);
+            Path filePath = UploadFileNames.storedPath(uploadPath, originalFilename, "audio.wav");
 
             Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 

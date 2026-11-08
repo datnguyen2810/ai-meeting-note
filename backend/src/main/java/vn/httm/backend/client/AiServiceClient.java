@@ -8,6 +8,7 @@ import org.springframework.http.*;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.File;
@@ -65,7 +66,7 @@ public class AiServiceClient {
     }
 
     @SuppressWarnings("unchecked")
-    public Map<String, Object> processMeetingAudio(String filePath, int maxSpeakers, String jobId) {
+    public Map<String, Object> processMeetingAudio(String filePath, int maxSpeakers, Integer numSpeakers, String jobId) {
         File audioFile = new File(filePath);
         if (!audioFile.exists()) {
             throw new RuntimeException("File không tồn tại: " + filePath);
@@ -78,16 +79,37 @@ public class AiServiceClient {
         body.add("file", new FileSystemResource(audioFile));
 
         HttpEntity<MultiValueMap<String, Object>> request = new HttpEntity<>(body, headers);
-        String url = baseUrl + "/api/process-meeting?max_speakers=" + maxSpeakers + (jobId != null ? "&job_id=" + jobId : "");
+        String url = baseUrl + "/api/process-meeting?max_speakers=" + maxSpeakers
+                + (numSpeakers != null ? "&num_speakers=" + numSpeakers : "")
+                + (jobId != null ? "&job_id=" + jobId : "");
 
         log.info("Gọi AI process-meeting: {} — file: {}", url, audioFile.getName());
-        ResponseEntity<Map> response = restTemplate.postForEntity(url, request, Map.class);
+        ResponseEntity<Map> response;
+        try {
+            response = restTemplate.postForEntity(url, request, Map.class);
+        } catch (HttpStatusCodeException e) {
+            // FastAPI trả lỗi dạng {"detail": "..."}; chuyển thông báo đó cho người dùng
+            // thay vì chuỗi lỗi HTTP thô.
+            throw new RuntimeException(extractDetail(e), e);
+        }
 
         if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
             return response.getBody();
         }
 
         throw new RuntimeException("AI service process-meeting trả về lỗi: " + response.getStatusCode());
+    }
+
+    private static String extractDetail(HttpStatusCodeException e) {
+        try {
+            Map<?, ?> body = e.getResponseBodyAs(Map.class);
+            if (body != null && body.get("detail") instanceof String detail && !detail.isBlank()) {
+                return detail;
+            }
+        } catch (RuntimeException ignored) {
+            // Thân lỗi không phải JSON: dùng thông báo mặc định bên dưới
+        }
+        return "AI service trả về lỗi " + e.getStatusCode().value();
     }
 
     @SuppressWarnings("unchecked")

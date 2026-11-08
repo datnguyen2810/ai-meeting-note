@@ -1,0 +1,19 @@
+Thời lượng: 02:00.09 | 3 người nói | 13 lượt
+Người 1 = Hà (vi-VN-HoaiMyNeural, stretch 1.0)
+Người 2 = Khoa (vi-VN-NamMinhNeural, stretch 1.0)
+Người 3 = Lan (vi-VN-HoaiMyNeural, stretch 1.18)
+Tuấn được giao việc nhưng không phát biểu.
+
+[00:00.50 - 00:10.95] Người 1 (Hà): Chào mọi người, hôm nay mình họp nhanh để chốt tiến độ đồ án ghi chú cuộc họp trước buổi báo cáo. Mục tiêu là thống nhất phần nào đã xong, phần nào còn thiếu và phân công cho tuần tới.
+[00:11.65 - 00:19.80] Người 2 (Khoa): Bên mình đã hoàn thành phần nhận dạng giọng nói. Hệ thống chuyển được tệp ghi âm thành văn bản tiếng Việt, độ chính xác khá ổn với giọng đọc rõ ràng.
+[00:20.70 - 00:29.94] Người 3 (Lan): Phần giao diện cũng đã xong trang lịch sử cuộc họp. Người dùng có thể mở lại bản ghi, xem tóm tắt và xuất kết quả ra tệp văn bản.
+[00:30.54 - 00:37.75] Người 1 (Hà): Tốt quá, cảm ơn hai bạn. Vậy hiện giờ nhóm mình đang vướng ở chỗ nào nhiều nhất, có việc gì cần xử lý gấp không?
+[00:38.75 - 00:46.45] Người 2 (Khoa): Vấn đề lớn nhất là phân biệt người nói. Khi hai người có giọng gần giống nhau, hệ thống đôi khi gán nhầm lời của người này sang người kia.
+[00:47.25 - 00:56.81] Người 3 (Lan): Ngoài ra trợ lý hỏi đáp vẫn còn chậm. Mỗi câu hỏi mất khoảng mười lăm giây mới trả lời, nên lúc trình diễn có thể làm thầy phải chờ lâu.
+[00:57.51 - 01:05.40] Người 1 (Hà): Vậy mình quyết định thế này. Nhóm sẽ giữ mô hình hiện tại cho buổi báo cáo, không đổi sang mô hình mới vì không đủ thời gian kiểm thử.
+[01:06.30 - 01:12.67] Người 2 (Khoa): Mình đồng ý. Mình sẽ thu thêm năm đoạn ghi âm của người thật để đánh giá lại phần phân biệt người nói, hạn là thứ Sáu tuần này.
+[01:13.27 - 01:20.48] Người 3 (Lan): Còn mình sẽ tối ưu trợ lý hỏi đáp để thời gian trả lời dưới mười giây, đồng thời hiển thị đoạn nguồn bên cạnh câu trả lời.
+[01:21.48 - 01:30.52] Người 1 (Hà): Được. Ngoài ra Tuấn sẽ phụ trách viết báo cáo và làm bài trình chiếu, hạn nộp là ngày hai mươi tháng mười một. Mình sẽ nhắn riêng cho Tuấn sau buổi họp.
+[01:31.32 - 01:37.53] Người 2 (Khoa): Nhân tiện, mình đề xuất cả nhóm chạy thử toàn bộ hệ thống trên máy của Lan vào tối thứ Năm, để kiểm tra trước khi báo cáo.
+[01:38.23 - 01:45.98] Người 3 (Lan): Tối thứ Năm mình rảnh. Mình sẽ chuẩn bị sẵn một cuộc họp mẫu trong lịch sử để phòng khi trình diễn trực tiếp bị lỗi.
+[01:46.88 - 01:59.29] Người 1 (Hà): Vậy chốt lại: Khoa đánh giá phân biệt người nói trước thứ Sáu, Lan tối ưu trợ lý hỏi đáp, Tuấn làm báo cáo trước ngày hai mươi tháng mười một, và cả nhóm chạy thử vào tối thứ Năm. Cảm ơn mọi người, kết thúc buổi họp.

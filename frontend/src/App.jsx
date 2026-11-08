@@ -7,6 +7,13 @@ import SpeechToTextDemo from "./components/SpeechToTextDemo";
 import SpeakerChatMeeting from "./components/SpeakerChatMeeting";
 import "./App.css";
 
+// Trạng thái cuộc họp từ backend (enum MeetingStatus) -> chữ tiếng Việt
+const STATUS_LABELS = { COMPLETED: "Hoàn thành", IN_PROGRESS: "Đang xử lý", SCHEDULED: "Đã lên lịch" };
+
+function statusLabel(status) {
+  return status ? STATUS_LABELS[status] || status : "Đã lưu";
+}
+
 function getUserInitials(user) {
   const name = user?.fullName || user?.username || "U";
   const parts = name.trim().split(/\s+/);
@@ -26,6 +33,10 @@ export default function App() {
   const [showUserModal, setShowUserModal] = useState(false);
   const [authMode, setAuthMode] = useState("login");
   const [loadingDetail, setLoadingDetail] = useState(false);
+  // Yêu cầu mở một cuộc họp trong màn hình phân người; nonce cho phép mở lại cùng id
+  const [speakerOpenRequest, setSpeakerOpenRequest] = useState(null);
+  // "recording" | "processing" | null: báo trên nút tab khi đang ở tab khác
+  const [speakerBusy, setSpeakerBusy] = useState(null);
 
   // If already logged in, go straight to dashboard
   useEffect(() => {
@@ -77,10 +88,18 @@ export default function App() {
     try {
       await api.deleteMeeting(id);
       setSelectedMeeting(null);
+      // Màn hình phân người đóng cuộc họp này nếu đang mở và xóa lịch sử chat của nó
+      window.dispatchEvent(new CustomEvent("meeting_deleted", { detail: { id } }));
       loadMeetings();
     } catch (err) {
       alert("Lỗi khi xóa cuộc họp: " + err.message);
     }
+  };
+
+  const handleOpenInSpeakerView = (m) => {
+    setSelectedMeeting(null);
+    setActiveTab("speaker");
+    setSpeakerOpenRequest({ id: m.id, nonce: Date.now() });
   };
 
   const handleDownloadMeetingMd = (m) => {
@@ -176,6 +195,11 @@ ${m.transcript || "_Chưa có nội dung cuộc họp chi tiết._"}
             onClick={() => setActiveTab("speaker")}
           >
             Phân vai người nói & Chat
+            {speakerBusy && activeTab !== "speaker" && (
+              <span style={{ marginLeft: 6, fontSize: 12 }}>
+                ({speakerBusy === "recording" ? "đang ghi âm" : "đang xử lý"})
+              </span>
+            )}
           </button>
           <button
             type="button"
@@ -252,7 +276,7 @@ ${m.transcript || "_Chưa có nội dung cuộc họp chi tiết._"}
                 >
                   <div className="db-card-header">
                     <span className="db-card-title">{m.title || `Cuộc họp #${m.id}`}</span>
-                    <span className="db-card-status">{m.status || "ĐÃ LƯU"}</span>
+                    <span className="db-card-status">{statusLabel(m.status)}</span>
                   </div>
                   <div className="db-card-meta">
                     <span>
@@ -297,7 +321,16 @@ ${m.transcript || "_Chưa có nội dung cuộc họp chi tiết._"}
         {/* Cột phải: Khu vực làm việc chính (2 chức năng) */}
         <main className="db-main-content">
           <div className="db-workspace-card">
-            {activeTab === "speaker" && <SpeakerChatMeeting onMeetingSaved={loadMeetings} />}
+            {/* Luôn gắn (chỉ ẩn khi sang tab khác): đổi tab lúc đang ghi âm hoặc đang
+                xử lý không làm mất bản ghi và kết quả. */}
+            <div style={{ display: activeTab === "speaker" ? "block" : "none" }}>
+              <SpeakerChatMeeting
+                onMeetingSaved={loadMeetings}
+                openRequest={speakerOpenRequest}
+                onOpenHandled={() => setSpeakerOpenRequest(null)}
+                onBusyChange={setSpeakerBusy}
+              />
+            </div>
             {activeTab === "live" && <LiveMeetingRoom onMeetingSaved={loadMeetings} />}
             {activeTab === "upload" && <SpeechToTextDemo onMeetingSaved={loadMeetings} />}
           </div>
@@ -379,7 +412,7 @@ ${m.transcript || "_Chưa có nội dung cuộc họp chi tiết._"}
                   {selectedMeeting.title || `Cuộc họp #${selectedMeeting.id}`}
                 </h3>
                 <span className="lmr-col-badge" style={{ background: "#dcfce7", color: "#166534" }}>
-                  {selectedMeeting.status || "COMPLETED"}
+                  {statusLabel(selectedMeeting.status)}
                 </span>
               </div>
               <button
@@ -423,6 +456,23 @@ ${m.transcript || "_Chưa có nội dung cuộc họp chi tiết._"}
               </div>
 
               <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => handleOpenInSpeakerView(selectedMeeting)}
+                  title="Xem phiên âm theo người nói và hỏi trợ lý AI về cuộc họp này"
+                  style={{
+                    padding: "5px 12px",
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    background: "#2563eb",
+                    color: "#ffffff",
+                    border: "1px solid #2563eb",
+                    borderRadius: 6,
+                    cursor: "pointer",
+                  }}
+                >
+                  Mở và hỏi đáp
+                </button>
                 <button
                   type="button"
                   onClick={() => handleDownloadMeetingMd(selectedMeeting)}

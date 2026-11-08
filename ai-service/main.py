@@ -16,6 +16,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from transformers import pipeline, AutoTokenizer, AutoModelForCausalLM
 
+from stdio_utf8 import ensure_utf8_stdio
+
+ensure_utf8_stdio()
+
 from vad_buffer import (
     UtteranceBuffer,
     VadGate,
@@ -27,6 +31,7 @@ from vad_buffer import (
 import ws_protocol as proto
 from summarization import run_summarize
 from meeting_processing import process_meeting_pipeline, run_meeting_chat
+from meeting_processing.service import AudioDecodeError
 
 # ==========================================
 # 1. Quản lý vòng đời Lifespan & nạp model
@@ -397,13 +402,36 @@ async def summarize_endpoint(body: SummarizeRequest):
 # ==========================================
 # 7. API M1: Xu ly cuoc hop toan dien (Diarization + ASR + Summary)
 # ==========================================
+MAX_NUM_SPEAKERS = 10
+PROCESS_MEETING_SUFFIXES = {".wav", ".mp3", ".flac", ".ogg", ".m4a", ".webm"}
+
+
 @app.post("/api/process-meeting")
 async def process_meeting_endpoint(
     file: UploadFile = File(...),
     max_speakers: int = 4,
-    job_id: Optional[str] = None
+    job_id: Optional[str] = None,
+    num_speakers: Optional[int] = None,
 ):
-    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".wav")
+    # Giống /api/transcribe: job dài giữ khóa GPU nhiều phút, làm phiên live đứng hình
+    if app.state.active_live_sessions > 0:
+        raise HTTPException(
+            status_code=409,
+            detail="Đang có phiên họp trực tiếp. Hãy kết thúc phiên live trước khi xử lý cuộc họp.",
+        )
+
+    # num_speakers: số người chính xác do người dùng nhập; bỏ trống thì tự đoán
+    if num_speakers is not None and not (1 <= num_speakers <= MAX_NUM_SPEAKERS):
+        raise HTTPException(
+            status_code=400,
+            detail=f"num_speakers phải trong khoảng 1-{MAX_NUM_SPEAKERS}",
+        )
+
+    # Giữ đuôi gốc để bộ giải mã nhận đúng định dạng (trước đây luôn là .wav)
+    suffix = os.path.splitext(file.filename or "")[1].lower()
+    if suffix not in PROCESS_MEETING_SUFFIXES:
+        suffix = ""
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
     temp_file_path = temp_file.name
     try:
         content = await file.read()
@@ -419,13 +447,16 @@ async def process_meeting_endpoint(
                 temp_file_path,
                 max_speakers,
                 app.state.device,
+                num_speakers,
             )
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
 
         return result
+    except AudioDecodeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e) or type(e).__name__)
     finally:
         if os.path.exists(temp_file_path):
             try:

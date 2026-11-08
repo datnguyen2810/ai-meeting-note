@@ -175,18 +175,40 @@ export const api = {
   },
 
   // M1: Process Audio with Diarization
-  async processAudio(file, title, clientRequestId, maxSpeakers = 4) {
+  // numSpeakers: số người chính xác nếu người dùng biết; bỏ trống để AI tự đoán
+  async processAudio(file, title, clientRequestId, maxSpeakers = 4, numSpeakers) {
     const formData = new FormData();
     formData.append("file", file);
     if (title) formData.append("title", title);
     if (clientRequestId) formData.append("clientRequestId", clientRequestId);
     formData.append("maxSpeakers", maxSpeakers);
+    if (numSpeakers) formData.append("numSpeakers", numSpeakers);
 
     const res = await request("/meetings/process-audio", {
       method: "POST",
       body: formData,
     });
     return res.data;
+  },
+
+  // Audio của cuộc họp để phát lại và tua theo trích dẫn. Thẻ <audio> không gửi được
+  // header Authorization nên tải về thành Blob. Trả null khi file không có trên máy
+  // chạy backend (audio lưu trên đĩa máy đã nhận upload, DB dùng chung cả nhóm).
+  async getMeetingAudio(meetingId) {
+    const token = getStoredToken();
+    const response = await fetch(`${API_BASE}/meetings/${meetingId}/audio/content`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) return null;
+    return response.blob();
+  },
+
+  // Trạng thái xử lý và model đã dùng (diarizationEngine, asrModel)
+  async getProcessingInfo(meetingId) {
+    const res = await request(`/meetings/${meetingId}/processing`, {
+      method: "GET",
+    });
+    return res.data || {};
   },
 
   async getSpeakers(meetingId) {
