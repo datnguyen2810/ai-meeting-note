@@ -26,7 +26,9 @@ Model AI (tự tải từ Hugging Face lần chạy đầu, tổng vài GB):
 
 - Phụ đề trực tiếp: `nguyenvulebinh/wav2vec2-base-vietnamese-250h`
 - Phiên âm file: `vinai/PhoWhisper-small`
-- Tóm tắt + hỏi đáp: `Qwen/Qwen2.5-1.5B-Instruct`
+- Tóm tắt + hỏi đáp: **Gemini API** (`gemini-3.5-flash-lite`, dự phòng `gemini-3.5-flash`) nếu có khóa, ngược lại `Qwen/Qwen2.5-1.5B-Instruct` chạy local. Qwen luôn được nạp làm dự phòng khi Gemini lỗi (mất mạng, hết hạn mức).
+  - Bật Gemini: lấy khóa miễn phí ở https://aistudio.google.com/api-keys, thêm `GEMINI_API_KEY=...` vào file `.env` ở gốc repo (mẫu trong `.env.example`). `LLM_BACKEND=local` để ép dùng Qwen. Lúc khởi động AI service in ra model đang dùng.
+  - Gói miễn phí của Gemini có thể dùng dữ liệu gửi lên để cải thiện sản phẩm: chỉ dùng với cuộc họp demo. Cần Internet khi demo. Hạn mức free (xem ở AI Studio → Rate Limit): Flash Lite 15 request/phút, 500/ngày; Flash chỉ 20/ngày. Mỗi lần tóm tắt và mỗi câu chat tốn 1 request.
 - Phân người nói: `pyannote/speaker-diarization-community-1` nếu đã cài (tùy chọn); nếu không, dùng bộ phân cụm pitch/MFCC có sẵn
 
 ---

@@ -80,7 +80,10 @@ Mỗi lượt được cắt riêng rồi đưa vào PhoWhisper, nên mỗi câu
 
 ### Bước 5 — Tóm tắt bằng LLM
 
-Model: **`Qwen/Qwen2.5-1.5B-Instruct`** (code ở `ai-service/summarization/`).
+Model: **Gemini API** (`gemini-3.5-flash-lite`, dự phòng `gemini-3.5-flash`; đổi bằng `GEMINI_MODEL`) khi có `GEMINI_API_KEY`; không có khóa hoặc Gemini lỗi thì dùng **`Qwen/Qwen2.5-1.5B-Instruct`** chạy local (code ở `ai-service/summarization/`, chọn model ở `ai-service/llm_backend.py`).
+
+- **Với Gemini:** API ép trả đúng cấu trúc JSON (5 nhóm; phân công là object người / việc / hạn / câu gốc, mỗi trường chép nguyên văn). Các lượt nói được nối bằng dấu chấm (vẫn không có nhãn) để model biết chỗ chuyển người. Code vẫn kiểm tra từng trường có thật trong biên bản. Các quy tắc vá cho Qwen (nối câu bị cắt, thêm câu giao việc bằng regex, bước 6 "bổ sung ý bị sót") **tắt** vì trên lời không dấu câu chúng cắt sai và thêm dòng trùng (đã đo).
+- **Với Qwen** (các ý dưới đây):
 
 - Prompt yêu cầu Qwen **trích nguyên văn** các đoạn thuộc 5 nhóm và trả về JSON, giải mã greedy (không ngẫu nhiên).
 - Văn bản đưa vào **không kèm nhãn** `[Người N]`: khi kèm nhãn, Qwen trả sai cấu trúc, nhãn lọt vào kết quả và chạy chậm gấp đôi (đã đo).
@@ -92,7 +95,7 @@ Model: **`Qwen/Qwen2.5-1.5B-Instruct`** (code ở `ai-service/summarization/`).
 Model nhỏ hay bỏ sót, nên có hai bước bù:
 
 - **Gán người nhận việc** (`attribution.py`): câu "mình sẽ làm X" thì người nhận việc là chính người đang nói, đổi "mình" thành `Người N`.
-- **Bổ sung ý bị sót** (`summary_supplement.py`): nếu tóm tắt thiếu Mục tiêu/Kết quả/Vấn đề/Quyết định, lấy các câu thuộc nhóm đó trong biên bản thêm vào, kèm `(Người N)`. Chỉ thêm, không sửa dòng Qwen đã viết.
+- **Bổ sung ý bị sót** (`summary_supplement.py`, chỉ khi tóm tắt do Qwen tạo): nếu tóm tắt thiếu Mục tiêu/Kết quả/Vấn đề/Quyết định, lấy các câu thuộc nhóm đó trong biên bản thêm vào, kèm `(Người N)`. Chỉ thêm, không sửa dòng Qwen đã viết.
 
 ## 4. Chatbot hỏi đáp
 
@@ -103,7 +106,7 @@ Code: `ai-service/meeting_processing/chat.py` (hàm `run_meeting_chat`). Chatbot
 | Về người tham gia | "Có bao nhiêu người?", "Ai nói nhiều nhất?" | Thống kê từ dữ liệu phân người (số lượt, số giây, %), không gọi model |
 | Tổng quát về một người | "Người 2 nói gì?" | Tách lời người đó thành từng ý, xếp nhóm (Mục tiêu, Quyết định, Đề xuất, Sẽ làm, Đã làm, Vấn đề, Giao việc), ghép thành một đoạn ý chính. Dùng nguyên chữ trong biên bản, không gọi model |
 | Theo nhóm nội dung | "Mục tiêu là gì?", "Đã quyết định gì?", "Có vấn đề gì?", "Có đề xuất gì?" | Liệt kê các ý thuộc nhóm đó, không gọi model |
-| Câu hỏi khác | "Ai làm báo cáo, hạn khi nào?" | Chọn các đoạn liên quan nhất (theo từ khóa) đưa cho **Qwen** trả lời kèm mã đoạn để trích dẫn |
+| Câu hỏi khác | "Ai làm báo cáo, hạn khi nào?" | Chọn các đoạn liên quan nhất (theo từ khóa) đưa cho **Gemini** (hoặc Qwen khi không có khóa/Gemini lỗi) trả lời kèm mã đoạn để trích dẫn |
 
 **Chống bịa (grounding check):** với câu trả lời của Qwen, hệ thống đo tỷ lệ chữ nội dung có xuất hiện trong các đoạn nguồn. Dưới **0,8** thì bỏ câu trả lời của model, thay bằng câu trích từ biên bản khớp nhất, hoặc báo "không đủ thông tin".
 
@@ -142,6 +145,16 @@ Nếu AI lỗi: job chuyển `FAILED` (giữ lại để tra lỗi), cuộc họ
 | VRAM ba model (Wav2Vec2 + PhoWhisper + Qwen) | đỉnh ~4,7 GB |
 
 Chống bịa: một câu trả lời bịa của Qwen ("mục tiêu cuộc họp") có tỷ lệ bám nguồn 0,69, các câu trả lời đúng đã thử đều 1,0. Ngưỡng 0,8 đặt theo các số này.
+
+**Gemini so với Qwen** (lời thoại đáp án của bản demo, bỏ dấu câu và viết thường cho giống chữ ASR; chưa chạy với chữ ASR thật qua giao diện):
+
+| | Qwen 1.5B (GPU) | Gemini `gemini-3.5-flash` (gói free) |
+| --- | --- | --- |
+| Tóm tắt: mục nào đúng theo đáp án | chỉ Kết quả + phân công; thiếu mục tiêu, vấn đề, quyết định | đủ mục tiêu, 2 kết quả, 2 vấn đề, quyết định, 5 phân công đúng người và hạn (2/2 lần chạy) |
+| Thời gian tóm tắt | ~24 s | 12–25 s (qua mạng) |
+| Chat, 5 câu hỏi đi tới model | nhiều câu bịa, phải trả bằng quy tắc | 5/5 đúng, có trích dẫn, câu không có trong biên bản báo đúng "không có thông tin"; 2–6 s mỗi câu |
+
+`gemini-3.5-flash-lite` (mặc định): tóm tắt đúng như bản Flash (2/2 lần), chat 4/5 câu đúng đủ (câu "Lan cần làm gì" thiếu một việc), ~0,9 s mỗi câu. Chọn làm mặc định vì gói free cho 500 request/ngày, còn `gemini-3.5-flash` chỉ 20/ngày và hay quá tải (503). `gemini-3.8-flash` ở gói free mất 56 s đến quá 180 s cho một câu hỏi ngắn.
 
 ## 7. Hạn chế (nên nói thẳng khi báo cáo)
 
