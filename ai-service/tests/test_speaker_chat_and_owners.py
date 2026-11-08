@@ -437,7 +437,7 @@ class PipelineModelsTests(unittest.TestCase):
 
         summary = "### Phân công công việc\n- **mình:** chuẩn bị sẵn một cuộc họp mẫu trong lịch sử."
         with patch.object(service, "diarize_with_engine", **diarize), \
-             patch.object(service, "run_summarize", return_value=summary):
+             patch.object(service, "run_summarize_with_info", return_value=(summary, None)):
             return service.process_meeting_pipeline(asr, object(), object(), self.path)
 
     def test_reports_engine_and_attributes_owner(self):
@@ -463,7 +463,7 @@ class PipelineModelsTests(unittest.TestCase):
                  {"start": 6.0, "end": 11.0, "speaker_id": "speaker_2"}]
         texts = iter(["mình sẽ chuẩn bị sẵn một cuộc họp mẫu", ""])
         with patch.object(service, "diarize_with_engine", return_value=(turns, "acoustic-pitch-mfcc", [])), \
-             patch.object(service, "run_summarize", return_value=""):
+             patch.object(service, "run_summarize_with_info", return_value=("", None)):
             result = service.process_meeting_pipeline(lambda c: {"text": next(texts, "")}, object(), object(), self.path)
         self.assertEqual([s["label"] for s in result["speakers"]], ["Người 1"])
         self.assertEqual(len(result["segments"]), 1)

@@ -490,7 +490,19 @@ def extractive_answer(question: str, scored: List[Tuple[int, Dict[str, Any]]]) -
 
 
 def _generate(llm_model, llm_tokenizer, messages: List[Dict[str, str]], device: str) -> str:
-    """Gọi Qwen sinh câu trả lời (tách riêng để kiểm thử bằng mock)."""
+    """Sinh câu trả lời bằng Gemini nếu có khóa, lỗi thì dùng Qwen (tách riêng để mock khi test)."""
+    import llm_backend
+
+    if llm_backend.gemini_enabled():
+        try:
+            return llm_backend.gemini_generate(messages, max_output_tokens=4096)
+        except Exception as exc:
+            print(f"[WARN] Chat bang Gemini loi ({exc}); dung Qwen local.")
+    return _generate_local(llm_model, llm_tokenizer, messages, device)
+
+
+def _generate_local(llm_model, llm_tokenizer, messages: List[Dict[str, str]], device: str) -> str:
+    """Gọi Qwen local sinh câu trả lời."""
     import torch
 
     text_input = llm_tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)

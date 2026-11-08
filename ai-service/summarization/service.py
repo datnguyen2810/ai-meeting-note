@@ -1,9 +1,10 @@
 """Token-budgeted extraction, bounded retry and deterministic rendering."""
 
+import json
 import logging
 import re
 
-from .prompts import messages_for
+from .prompts import gemini_messages_for, messages_for
 from .render import render_markdown
 from .schema import SummaryData
 from .validation import completed_json, explicit_source_facts, merge_results, parse_extraction, validate_extraction
@@ -12,6 +13,31 @@ logger = logging.getLogger(__name__)
 MAX_NEW_TOKENS = 1400
 MAX_TRANSCRIPT_TOKENS = 1000
 MAX_CONTEXT_TOKENS = 4096
+# Gemini có context rất lớn: mỗi phần ~12k token Qwen (cỡ 40 phút họp) để ít phải chia.
+GEMINI_TRANSCRIPT_TOKENS = 12000
+SUMMARY_SECTIONS = ("objectives", "results", "issues", "decisions", "actions")
+# Ép Gemini trả đúng cấu trúc; nội dung vẫn được kiểm tra khớp nguồn như với Qwen.
+# Phân công là object để khỏi tách người/việc/hạn bằng regex (hỏng khi lời không dấu câu).
+_ACTION_FIELDS = ("assignee", "task", "deadline_text", "evidence")
+GEMINI_SUMMARY_SCHEMA = {
+    "type": "OBJECT",
+    "properties": {
+        **{name: {"type": "ARRAY", "items": {"type": "STRING"}} for name in SUMMARY_SECTIONS[:-1]},
+        "actions": {"type": "ARRAY", "items": {
+            "type": "OBJECT",
+            "properties": {
+                "assignee": {"type": "STRING", "nullable": True},
+                "task": {"type": "STRING"},
+                "deadline_text": {"type": "STRING", "nullable": True},
+                "evidence": {"type": "STRING"},
+            },
+            "required": list(_ACTION_FIELDS),
+            "propertyOrdering": list(_ACTION_FIELDS),
+        }},
+    },
+    "required": list(SUMMARY_SECTIONS),
+    "propertyOrdering": list(SUMMARY_SECTIONS),
+}
 
 
 def split_transcript(text, tokenizer, budget=MAX_TRANSCRIPT_TOKENS):
@@ -57,17 +83,24 @@ def split_transcript(text, tokenizer, budget=MAX_TRANSCRIPT_TOKENS):
     return chunks
 
 
-def summarize_with_generator(transcript, tokenizer, generate):
-    """Pure orchestration; tests inject generation without loading model weights."""
+def summarize_with_generator(
+    transcript, tokenizer, generate, budget=MAX_TRANSCRIPT_TOKENS, prompt=messages_for, rule_repair=True
+):
+    """Pure orchestration; tests inject generation without loading model weights.
+
+    `rule_repair` bật các quy tắc vá cho Qwen: nối phân công bị cắt cụt và thêm mệnh đề
+    giao việc tìm bằng regex để bù chỗ bỏ sót. Tắt với Gemini: đo trên bản demo, regex
+    cắt sai câu khi lời không có dấu câu và thay câu đầy đủ của Gemini bằng bản cụt.
+    """
     if not transcript.strip():
         return "Không có nội dung để tóm tắt."
     parts = []
-    for index, chunk in enumerate(split_transcript(transcript, tokenizer), start=1):
+    for index, chunk in enumerate(split_transcript(transcript, tokenizer, budget), start=1):
         best = None
         for attempt in range(2):
             try:
-                extraction = parse_extraction(generate(messages_for(chunk, retry=attempt > 0)))
-                candidate = validate_extraction(extraction, chunk)
+                extraction = parse_extraction(generate(prompt(chunk, retry=attempt > 0)))
+                candidate = validate_extraction(extraction, chunk, align=rule_repair)
                 # A valid first attempt is retained if the retry fails.
                 def score(result):
                     count = sum(len(getattr(result, name)) for name in ("objectives", "results", "issues", "decisions", "actions"))
@@ -84,11 +117,54 @@ def summarize_with_generator(transcript, tokenizer, generate):
                 f"Phần {index}: không tạo được dữ liệu đúng cấu trúc sau 2 lần thử; cần xem phiên âm gốc."
             ])
         # Explicit source clauses supplement omissions without another LLM call.
-        parts.append(merge_results([best, explicit_source_facts(chunk)]))
+        parts.append(merge_results([best, explicit_source_facts(chunk)]) if rule_repair else merge_results([best]))
     return render_markdown(merge_results(parts))
 
 
+def summarize_with_gemini(transcript: str, tokenizer) -> str:
+    """Cùng quy trình trích xuất + kiểm tra nguồn, chỉ thay bước sinh bằng Gemini.
+
+    Lỗi gọi API (mạng, hạn mức) ném GeminiError ngay thay vì bị coi là JSON sai.
+    """
+    from llm_backend import gemini_generate
+
+    def generate(messages):
+        raw = json.loads(gemini_generate(messages, response_schema=GEMINI_SUMMARY_SCHEMA))
+        # Schema bắt buộc có khóa; giá trị rỗng/null nghĩa là không nói tới
+        for action in raw.get("actions", []):
+            for field in ("assignee", "deadline_text"):
+                if not (isinstance(action.get(field), str) and action[field].strip()):
+                    action[field] = None
+        return json.dumps(raw, ensure_ascii=False)
+
+    return summarize_with_generator(
+        transcript, tokenizer, generate, budget=GEMINI_TRANSCRIPT_TOKENS,
+        prompt=gemini_messages_for, rule_repair=False,
+    )
+
+
+def run_summarize_with_info(llm_model, llm_tokenizer, transcript: str, device: str) -> tuple[str, str | None]:
+    """Trả (tóm tắt, tên model Gemini nếu đã dùng); Gemini lỗi thì quay về Qwen (None)."""
+    import llm_backend
+
+    if transcript.strip() and llm_backend.gemini_enabled():
+        llm_backend.last_model_used = None
+        try:
+            summary = summarize_with_gemini(transcript, llm_tokenizer)
+            if summary and "Chưa trích xuất được dữ kiện" not in summary:
+                return summary, llm_backend.gemini_model_label()
+            logger.warning("Gemini không trích xuất được dữ kiện; thử lại bằng Qwen.")
+        except Exception as exc:
+            # Thông báo GeminiError không chứa khóa API
+            print(f"[WARN] Tom tat bang Gemini loi ({exc}); dung Qwen local.")
+    return run_summarize_local(llm_model, llm_tokenizer, transcript, device), None
+
+
 def run_summarize(llm_model, llm_tokenizer, transcript: str, device: str) -> str:
+    return run_summarize_with_info(llm_model, llm_tokenizer, transcript, device)[0]
+
+
+def run_summarize_local(llm_model, llm_tokenizer, transcript: str, device: str) -> str:
     import torch
     from transformers import StoppingCriteria, StoppingCriteriaList
 

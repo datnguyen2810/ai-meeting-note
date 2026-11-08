@@ -146,7 +146,7 @@ class PipelineTests(unittest.TestCase):
             return {"text": f"câu số {len(chunks)}"}
 
         with patch.object(service, "diarize_with_engine", return_value=(raw_turns, engine, [])), \
-             patch.object(service, "run_summarize", return_value="### Tóm tắt") as summarize:
+             patch.object(service, "run_summarize_with_info", return_value=("### Tóm tắt", None)) as summarize:
             result = service.process_meeting_pipeline(asr, object(), object(), self.path, num_speakers=2)
         return result, summarize, chunks
 

@@ -339,7 +339,9 @@ def parse_extraction(raw: str) -> Extraction:
     return result
 
 
-def validate_extraction(data: Extraction, source: str) -> SummaryData:
+def validate_extraction(data: Extraction, source: str, align: bool = True) -> SummaryData:
+    """Giữ mục khớp nguyên văn nguồn. `align` nối phân công bị cắt cụt (Qwen) vào
+    mệnh đề đầy đủ tìm bằng regex; tắt với Gemini vì regex cắt sai khi thiếu dấu câu."""
     result = SummaryData(objectives=[], results=[], issues=[], decisions=[], actions=[])
     result.warnings.extend(getattr(data, "warnings", []))
     rejected = 0
@@ -375,7 +377,8 @@ def validate_extraction(data: Extraction, source: str) -> SummaryData:
         ):
             action.needs_confirmation = True
         result.actions.append(action)
-    result.actions = align_actions_to_source(result.actions, source)
+    if align:
+        result.actions = align_actions_to_source(result.actions, source)
     for action in result.actions:
         if action.deadline_text and re.search(r"\b(?:trước\s+từ|ngày\s+nay|thứ\s+tuần|tháng\s+tháng)\b", action.deadline_text, re.I):
             action.needs_confirmation = True

@@ -10,7 +10,8 @@ from .attribution import attribute_first_person_owners
 from .diarize import PYANNOTE_ENGINE, diarize_with_engine
 from .summary_supplement import supplement_summary
 from .turns import ASR_PAD_SECONDS, PYANNOTE_ASR_PAD_SECONDS, padded_bounds, prepare_turns
-from summarization import run_summarize
+import llm_backend
+from summarization.service import run_summarize_with_info
 
 ASR_MODEL_FALLBACK = "vinai/PhoWhisper-small"
 SUMMARY_MODEL_FALLBACK = "Qwen/Qwen2.5-1.5B-Instruct"
@@ -151,14 +152,18 @@ def process_meeting_pipeline(
     # Bản có nhãn để hiển thị/lưu; bản không nhãn để tóm tắt. Nhãn [Người N]
     # làm Qwen trả sai cấu trúc và lọt vào phần kết quả (đã đo trên file demo).
     full_transcript = "\n".join(full_transcript_parts)
-    summary_input = " ".join(summary_parts)
+    # Gemini: dấu chấm giữa các lượt cho biết chỗ chuyển người (lời ASR không có dấu câu,
+    # đo trên bản demo: thiếu nó thì câu trả lời "được" của lượt sau dính vào việc của Lan).
+    # Qwen giữ cách nối cũ vì chưa đo ảnh hưởng.
+    summary_input = (". " if llm_backend.gemini_enabled() else " ").join(summary_parts)
 
-    # 3. Tom tat cuoc hop voi Qwen2.5
+    # 3. Tom tat cuoc hop (Gemini neu co khoa, nguoc lai Qwen2.5)
     print("[INFO] Dang tao tom tat cuoc hop...")
     summary = ""
+    summary_model = None  # tên Gemini nếu đã dùng; None là Qwen local
     if summary_input:
         try:
-            summary = run_summarize(llm_model, llm_tokenizer, summary_input, device)
+            summary, summary_model = run_summarize_with_info(llm_model, llm_tokenizer, summary_input, device)
         except Exception as e:
             print(f"[WARN] Loi tom tat Qwen: {e}")
             summary = "Chưa thể tạo tóm tắt do lỗi xử lý mô hình."
@@ -168,10 +173,13 @@ def process_meeting_pipeline(
     if owners_replaced:
         print(f"[INFO] Da gan nguoi nhan viec theo nguoi noi cho {owners_replaced} muc.")
 
-    # Qwen hay bỏ mục tiêu/vấn đề/quyết định; thêm các ý đó từ biên bản bằng quy tắc
-    summary, supplemented = supplement_summary(summary, segments)
-    if supplemented:
-        print(f"[INFO] Bo sung {supplemented} y vao tom tat bang quy tac.")
+    # Qwen hay bỏ mục tiêu/vấn đề/quyết định; thêm các ý đó từ biên bản bằng quy tắc.
+    # Không áp dụng cho Gemini: đo trên bản demo, Gemini đã đủ các mục và quy tắc chỉ
+    # thêm dòng trùng (quyết định lặp lại, câu "chốt lại" dính liền).
+    if summary_model is None:
+        summary, supplemented = supplement_summary(summary, segments)
+        if supplemented:
+            print(f"[INFO] Bo sung {supplemented} y vao tom tat bang quy tac.")
 
     speakers_list = list(speaker_dict.values())
     speakers_list.sort(key=lambda s: s["first_start_seconds"])
@@ -203,7 +211,7 @@ def process_meeting_pipeline(
         "models": {
             "diarization": diarization_engine,
             "asr": _model_name(stt_pipe, ASR_MODEL_FALLBACK),
-            "summary": _model_name(llm_model, SUMMARY_MODEL_FALLBACK),
+            "summary": summary_model or _model_name(llm_model, SUMMARY_MODEL_FALLBACK),
         },
     }
 

@@ -85,6 +85,12 @@ async def lifespan(app: FastAPI):
     app.state.llm_tokenizer = llm_tokenizer
     app.state.llm_model = llm_model
     print(f"[INFO] Qwen2.5 ready ({time.perf_counter() - t0:.2f}s).")
+    # Qwen vẫn nạp để làm dự phòng khi Gemini lỗi (mạng, hết hạn mức)
+    import llm_backend
+    if llm_backend.gemini_enabled():
+        print(f"[INFO] Tom tat/chat dung Gemini ({llm_backend.gemini_model()}); Qwen la du phong.")
+    else:
+        print("[INFO] Tom tat/chat dung Qwen local (khong co GEMINI_API_KEY hoac LLM_BACKEND=local).")
 
     print("[INFO] >>> Tat ca mo hinh da san sang! Server hoat dong. <<<")
     yield
