@@ -64,6 +64,7 @@ Các đường dẫn Java bên dưới tính từ `backend/src/main/java/vn/httm
 | Java gọi AI, file upload | `client/AiServiceClient.java`, `config/RestTemplateConfig.java`, `service/AudioService.java`, `service/MeetingService.java` (`saveMeetingSession`) |
 | DB, JWT, AI URL, upload limit | `backend/src/main/resources/application.properties`, `.env.example` |
 | Thử nghiệm / benchmark | `models_testing/`, `ai-service/test_model.py`, `data_test/` (audio demo 3 người + đáp án ở `data_test/demo_meeting/`) — chỉ đọc khi cần đánh giá model |
+| Mô tả tính năng cho nhóm/báo cáo | `TINH_NANG_PHAN_NGUOI_CHAT.md` (luồng, model, số đo, hạn chế); đổi pipeline/chat/số đo thì sửa cả file này |
 | Kế hoạch tính năng | `PLAN_SPEAKERS_CHAT.md` (phân người + chat, DB chung); `PLAN_REALTIME_HYBRID_ASR.md` (realtime) — xác minh lại với code |
 
 ## Hợp đồng giao tiếp cần giữ đồng bộ

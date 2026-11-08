@@ -133,7 +133,7 @@ cd frontend; npm run build; npm run lint
 cd backend; .\mvnw.cmd -q -o compile
 ```
 
-Chi tiết kiến trúc, API và cách đánh giá model: xem `AGENTS.md`.
+Mô tả tính năng phân người + chatbot (luồng, model, số đo, hạn chế) để báo cáo: xem `TINH_NANG_PHAN_NGUOI_CHAT.md`. Chi tiết kiến trúc, API và cách đánh giá model: xem `AGENTS.md`.
 
 ---
 
