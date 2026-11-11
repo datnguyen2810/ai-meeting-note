@@ -162,5 +162,34 @@ class ProcessMeetingApiTests(unittest.TestCase):
         self.assertIsNone(pipeline.call_args.args[-1])
 
 
+class ClusterThresholdTest(unittest.TestCase):
+    """PYANNOTE_CLUSTER_THRESHOLD đổi ngưỡng gộp giọng; sai hoặc bỏ trống thì giữ mặc định."""
+
+    class FakePipeline:
+        def __init__(self):
+            self.params = {"clustering": {"threshold": 0.6, "Fa": 0.07, "Fb": 0.8}}
+
+        def parameters(self, instantiated=False):
+            return {k: dict(v) for k, v in self.params.items()}
+
+        def instantiate(self, params):
+            self.params = params
+
+    def run_with(self, value):
+        from meeting_processing import diarize
+
+        pipeline = self.FakePipeline()
+        with patch.object(diarize, "_env_value", return_value=value):
+            diarize.apply_cluster_threshold(pipeline)
+        return pipeline.params["clustering"]
+
+    def test_valid_value_changes_only_threshold(self):
+        self.assertEqual(self.run_with("0.4"), {"threshold": 0.4, "Fa": 0.07, "Fb": 0.8})
+
+    def test_missing_or_invalid_keeps_default(self):
+        for value in (None, "", "abc", "0", "2.5"):
+            self.assertEqual(self.run_with(value)["threshold"], 0.6, value)
+
+
 if __name__ == "__main__":
     unittest.main()

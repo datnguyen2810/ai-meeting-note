@@ -8,33 +8,77 @@ from sklearn.cluster import AgglomerativeClustering
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import silhouette_score
 
-def _hf_token() -> Optional[str]:
-    """Token Hugging Face: biến môi trường HF_TOKEN, file .env trong repo,
-    hoặc token đã lưu bằng `hf auth login` (nằm trong thư mục người dùng, ngoài repo)."""
-    token = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_TOKEN")
-    if token:
-        return token
-    # Doc tu file .env neu chua duoc load vao os.environ
-    for env_path in (
-        Path(__file__).resolve().parent.parent / ".env",
-        Path(__file__).resolve().parent.parent.parent / ".env",
-    ):
+_ENV_FILES = (
+    Path(__file__).resolve().parent.parent / ".env",
+    Path(__file__).resolve().parent.parent.parent / ".env",
+)
+
+
+def _env_value(*keys: str) -> Optional[str]:
+    """Giá trị biến môi trường, không có thì đọc từ .env ở ai-service/ hoặc gốc repo."""
+    for key in keys:
+        if os.getenv(key):
+            return os.getenv(key)
+    for env_path in _ENV_FILES:
         if env_path.is_file():
             try:
                 for line in env_path.read_text(encoding="utf-8").splitlines():
-                    line = line.strip()
-                    if line.startswith("HF_TOKEN=") or line.startswith("HUGGINGFACE_TOKEN="):
-                        val = line.split("=", 1)[1].strip().strip('"').strip("'")
-                        if val:
-                            os.environ["HF_TOKEN"] = val
-                            return val
+                    name, _, val = line.strip().partition("=")
+                    val = val.strip().strip('"').strip("'")
+                    if name.strip() in keys and val:
+                        return val
             except Exception:
                 pass
+    return None
+
+
+def _hf_token() -> Optional[str]:
+    """Token Hugging Face: biến môi trường HF_TOKEN, file .env trong repo,
+    hoặc token đã lưu bằng `hf auth login` (nằm trong thư mục người dùng, ngoài repo)."""
+    token = _env_value("HF_TOKEN", "HUGGINGFACE_TOKEN")
+    if token:
+        os.environ["HF_TOKEN"] = token
+        return token
     try:
         from huggingface_hub import get_token
         return get_token()
     except Exception:
         return None
+
+
+def cluster_threshold() -> Optional[float]:
+    """Ngưỡng gộp giọng của pyannote từ PYANNOTE_CLUSTER_THRESHOLD (0 < x < 2).
+
+    Ngưỡng thấp hơn mặc định 0,6 thì tách ra nhiều người hơn, nhưng dễ tách một
+    người thành hai. Bỏ trống hoặc giá trị sai thì giữ mặc định của model.
+    """
+    raw = _env_value("PYANNOTE_CLUSTER_THRESHOLD")
+    if not raw:
+        return None
+    try:
+        value = float(raw)
+    except ValueError:
+        print(f"[WARN] PYANNOTE_CLUSTER_THRESHOLD={raw!r} khong phai so; giu nguong mac dinh.")
+        return None
+    if not 0 < value < 2:
+        print(f"[WARN] PYANNOTE_CLUSTER_THRESHOLD={value} ngoai khoang (0, 2); giu nguong mac dinh.")
+        return None
+    return value
+
+
+def apply_cluster_threshold(pipeline) -> None:
+    value = cluster_threshold()
+    if value is None:
+        return
+    params = pipeline.parameters(instantiated=True)
+    clustering = params.get("clustering")
+    if not isinstance(clustering, dict) or "threshold" not in clustering:
+        print("[WARN] Pipeline pyannote khong co clustering.threshold; bo qua PYANNOTE_CLUSTER_THRESHOLD.")
+        return
+    old = clustering["threshold"]
+    clustering["threshold"] = value
+    pipeline.instantiate(params)
+    print(f"[INFO] Nguong gop giong pyannote: {old} -> {value} (PYANNOTE_CLUSTER_THRESHOLD).")
 
 
 _diarize_pipeline = None
@@ -63,6 +107,7 @@ def get_diarization_pipeline(device: str = "cpu"):
                 pipeline.to(torch.device(device))
                 pipeline.embedding_batch_size = PYANNOTE_BATCH_SIZE
                 pipeline.segmentation_batch_size = PYANNOTE_BATCH_SIZE
+                apply_cluster_threshold(pipeline)
                 _diarize_pipeline = pipeline
                 return _diarize_pipeline
         except Exception as e:
