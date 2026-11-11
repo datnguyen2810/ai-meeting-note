@@ -6,11 +6,13 @@ AGENTS.md (nạp ở trên) là bản đồ dự án, hợp đồng API và lệ
 
 **Quy tắc đồng bộ (người dùng yêu cầu):** mỗi khi kiến trúc, API, lệnh chạy, vị trí file, hiện trạng đo được hoặc việc còn mở thay đổi, cập nhật **cả AGENTS.md và CLAUDE.md** trong cùng lượt. Thông tin chung cho mọi agent đặt ở AGENTS.md, phần dưới đây đặt ở CLAUDE.md; không chép trùng giữa hai file.
 
-Tính năng phân người + chatbot hiện chỉ có trên nhánh `feat/m1-speaker-chat-summarize` và `feat/speaker-count-eval`, chưa gộp vào main.
+Tính năng phân người + chatbot + Gemini được gộp vào main từ nhánh `feat/speaker-meeting-ui-polish` (2026-11-11).
 
 ## Sự thật đã đo, đừng đo lại hay giả định ngược
 
 - pyannote `speaker-diarization-community-1` (pyannote.audio 4.0.7) trên file demo: **tự đoán đúng 3 người** (pitch/MFCC ra 2); tự động và chọn 3 người cho cùng kết quả. Sau khi gom chuỗi mẩu ngắn theo khối (`turns.absorb_short_turns`): gán đúng 96,2%, bỏ sót 3,6%, 0/13 lượt sai, 16 lượt (trước khi sửa: 94,9%, 21 lượt). Pitch/MFCC chọn 3 người vẫn 97,4%. pyannote sinh chuỗi mẩu 0,01–0,4 s xen kẽ hai người ở chỗ chuyển lượt (Hà và Lan cùng giọng HoaiMy). Chưa đo bản thu qua micro hay giọng người thật.
+- Ngưỡng gộp giọng pyannote (`clustering.threshold`, VBx) trên bản demo, tự đoán: 0,6 / 0,4 / 0,2 đều ra 3 người với phân chia giống hệt; 0,05 ra **2** người. Hạ ngưỡng không làm tăng số người (VBx gộp lại theo `Fa`/`Fb`), nên không phải cách sửa "Tự động" ra thiếu người. Chưa đo trên giọng thật.
+- Bản ghi giọng thật đầu tiên (2026-11-11, 22 s, 3 lượt đầu kịch bản Hiếu/Đạt/Kiên, micro laptop): "Tự động" ra 1 người, chọn 3 người ra 3 người; chưa xác định đã dùng bộ phân người nào. ASR sai nhiều ("chờ hai bạn", "tái tiếp điểm lớn").
 - Tốc độ pyannote cho 120 s audio: CPU 52 s; GPU RTX 4050 4,5–6,9 s. VRAM khi chạy: batch mặc định 32 cần +1,6 GB (đỉnh cả hệ thống 5890/6141 MiB); batch 8 +0,4 GB, cùng kết quả, 4,6 s, nên đặt `PYANNOTE_BATCH_SIZE = 8`; đỉnh cả hệ thống còn 5626–5652 MiB.
 - Venv-next (torch 2.14.1+cu126) trên GPU: ba model cũ + pyannote nạp được (4,94 GB sau khi nạp), pipeline đầy đủ cho file demo 35–41 s, chat 1 s. PhoWhisper cho **cùng chữ** với torch 2.6 trên cùng đoạn audio; khác biệt chữ chỉ đến từ biên cắt đoạn.
 - Biên cắt của pyannote làm PhoWhisper mất số: đoạn bắt đầu giữa câu ("vậy" bị tách riêng) bỏ hết từ chỉ số; nới 0,2 s đọc "thứ sáu tuần này" thành "thứ tư này", "ngày hai mươi tháng mười một" thành "ngày mười" (6/8 cụm đúng), nới 0,3 s đúng 8/8. Pitch/MFCC: 0,2 s 8/8, 0,3 s 7/8. Vì vậy nới theo bộ phân người (chỉ đo trên file demo).

@@ -46,7 +46,6 @@ Model AI (tự tải từ Hugging Face lần chạy đầu, tổng vài GB):
 ```powershell
 git clone https://github.com/datnguyen2810/ai-meeting-note.git
 cd ai-meeting-note
-git checkout feat/speaker-count-eval   # nhánh có phân người + chatbot (bỏ qua nếu đã gộp vào main)
 ```
 
 ### 2. Tạo file `.env` (cho backend)
@@ -102,14 +101,14 @@ Mở <http://localhost:5173>. Dùng Chrome/Edge; micro chỉ hoạt động trê
 1. Đăng ký tài khoản (hoặc đăng nhập) → vào Dashboard.
 2. Tab **"Phân vai người nói & Chat"**:
    - **Bước 1 – Âm thanh:** chọn file `data_test/demo_meeting/demo_meeting.wav` (cuộc họp 3 người, 2 phút), hoặc bấm ghi âm trực tiếp từ micro.
-   - **Bước 2 – Xử lý:** ở ô **"Số người"** chọn **3** rồi bấm xử lý. Biết số người thì nên chọn: chế độ "Tự động" với bộ pitch/MFCC thường chỉ tách ra 2 người.
+   - **Bước 2 – Xử lý:** ở ô **"Số người"** chọn **3** rồi bấm xử lý. Biết số người thì nên chọn: chế độ "Tự động" với bộ pitch/MFCC thường chỉ tách ra 2 người, và trên giọng thật cùng giới có thể ra thiếu người.
 3. Xem kết quả: biên bản tô màu theo người nói (bấm vào đoạn để nghe lại), bản tóm tắt, danh sách người nói.
 4. Hỏi chatbot bằng các câu gợi ý, ví dụ: "Mục tiêu cuộc họp là gì?", "Nhóm đã quyết định gì?", "Người 2 nói gì?", "Có bao nhiêu người tham gia?". Câu trả lời kèm trích dẫn mốc thời gian.
 5. Cột trái là lịch sử cuộc họp; bấm **"Mở và hỏi đáp"** để mở lại cuộc họp cũ.
 
-Đáp án để đối chiếu: `data_test/demo_meeting/demo_meeting_reference.txt`.
+Đáp án để đối chiếu: `data_test/demo_meeting/demo_meeting_reference.txt`. Muốn thử giọng thật: đọc kịch bản trong `data_test/kich_ban_ghi_am_3_nguoi.md` (3 người, khoảng 1 phút 30, có đáp án).
 
-Các tab khác: **"Cuộc họp trực tiếp"** (phụ đề realtime qua micro, dừng lại sẽ phiên âm + tóm tắt cả bản ghi) và **"Tải file & Phân tích"** (phiên âm + tóm tắt một file, không phân người).
+Tab còn lại: **"Cuộc họp trực tiếp"** (phụ đề realtime qua micro, dừng lại sẽ phiên âm + tóm tắt cả bản ghi). Tải tệp âm thanh có sẵn thì dùng nút "Chọn tệp âm thanh" ở tab phân người.
 
 ### Lỗi thường gặp
 
@@ -121,6 +120,8 @@ Các tab khác: **"Cuộc họp trực tiếp"** (phụ đề realtime qua micro
 | Không phát lại được audio của cuộc họp do máy khác tạo | Bình thường: file audio chỉ lưu trên máy đã upload, DB thì dùng chung |
 | File ghi âm lỗi định dạng | Chỉ nhận WAV/MP3/FLAC/OGG (máy chưa cài FFmpeg) |
 | Hết VRAM | Tắt ứng dụng khác dùng GPU; ba model chiếm khoảng 4,7 GB |
+| Log AI báo `Gemini HTTP 503` / `429` | 503 là Gemini quá tải: tự thử lại rồi chuyển model dự phòng. 429 là hết hạn mức: chuyển model khác, hết cả thì dùng Qwen. Chân trang giao diện ghi model tóm tắt đã dùng |
+| "Tự động" ra thiếu người | Chọn đúng số người ở ô "Số người" rồi xử lý lại |
 
 ---
 

@@ -25,7 +25,7 @@ Ghi âm WAV / chọn file
                                                                       2. Phân người nói
                                                                       3. Dọn lượt nói
                                                                       4. ASR từng lượt
-                                                                      5. Tóm tắt (Qwen)
+                                                                      5. Tóm tắt (Gemini/Qwen)
                                                                       6. Hậu xử lý tóm tắt
                                      ◄──────────────────── JSON: transcript, speakers,
                                                                  segments, summary, models
@@ -99,7 +99,7 @@ Model nhỏ hay bỏ sót, nên có hai bước bù:
 
 ## 4. Chatbot hỏi đáp
 
-Code: `ai-service/meeting_processing/chat.py` (hàm `run_meeting_chat`). Chatbot **không đưa mọi câu cho LLM**. Nó phân loại câu hỏi trước, vì Qwen 1.5B dễ bịa hoặc đảo nghĩa với một số loại câu hỏi:
+Code: `ai-service/meeting_processing/chat.py` (hàm `run_meeting_chat`). Chatbot **không đưa mọi câu cho LLM**. Nó phân loại câu hỏi trước: các loại dưới đây được trả bằng quy tắc vì Qwen 1.5B từng bịa hoặc đảo nghĩa với chúng; khi dùng Gemini vẫn giữ để không tốn request và trả lời được cả khi mất mạng. Các câu gợi ý trên giao diện đều thuộc nhóm trả bằng quy tắc.
 
 | Loại câu hỏi | Ví dụ | Cách trả lời |
 | --- | --- | --- |
@@ -108,7 +108,7 @@ Code: `ai-service/meeting_processing/chat.py` (hàm `run_meeting_chat`). Chatbot
 | Theo nhóm nội dung | "Mục tiêu là gì?", "Đã quyết định gì?", "Có vấn đề gì?", "Có đề xuất gì?" | Liệt kê các ý thuộc nhóm đó, không gọi model |
 | Câu hỏi khác | "Ai làm báo cáo, hạn khi nào?" | Chọn các đoạn liên quan nhất (theo từ khóa) đưa cho **Gemini** (hoặc Qwen khi không có khóa/Gemini lỗi) trả lời kèm mã đoạn để trích dẫn |
 
-**Chống bịa (grounding check):** với câu trả lời của Qwen, hệ thống đo tỷ lệ chữ nội dung có xuất hiện trong các đoạn nguồn. Dưới **0,8** thì bỏ câu trả lời của model, thay bằng câu trích từ biên bản khớp nhất, hoặc báo "không đủ thông tin".
+**Chống bịa (grounding check):** với câu trả lời của LLM (Gemini hoặc Qwen), hệ thống đo tỷ lệ chữ nội dung có xuất hiện trong các đoạn nguồn. Dưới **0,8** thì bỏ câu trả lời của model, thay bằng câu trích từ biên bản khớp nhất, hoặc báo "không đủ thông tin".
 
 Câu hỏi có nhắc "người 2 / người thứ hai…" được tự lọc theo người đó; cũng có thể chọn người ở bộ lọc trên giao diện.
 
@@ -128,7 +128,7 @@ Nếu AI lỗi: job chuyển `FAILED` (giữ lại để tra lỗi), cuộc họ
 
 ## 6. Kết quả đo được
 
-Đo trên **file demo** `data_test/demo_meeting/demo_meeting.wav`: 2 phút, 3 người, giọng tổng hợp bằng edge-tts, có đáp án từng lượt. **Chưa đo trên bản ghi người thật.**
+Đo trên **file demo** `data_test/demo_meeting/demo_meeting.wav`: 2 phút, 3 người, giọng tổng hợp bằng edge-tts, có đáp án từng lượt. **Chưa đo đầy đủ trên bản ghi người thật**: bản ghi giọng thật đầu tiên (22 s, 3 giọng nam, micro laptop) để "Tự động" chỉ ra 1 người, chọn 3 người thì ra đúng 3. Kịch bản để ghi thêm: `data_test/kich_ban_ghi_am_3_nguoi.md`.
 
 | Chỉ số | pyannote | Pitch/MFCC |
 | --- | --- | --- |
@@ -161,7 +161,9 @@ Chống bịa: một câu trả lời bịa của Qwen ("mục tiêu cuộc họ
 - Bộ pitch/MFCC **không tự đoán đúng số người** (điểm silhouette gần như phẳng) và không tách được hai giọng cùng giới quá giống nhau. Cách đáng tin nhất là người dùng nhập số người.
 - Số đo trên giọng tổng hợp, sạch; giọng người thật, nói chen, tiếng ồn sẽ kém hơn.
 - PhoWhisper vẫn nghe nhầm một số từ ("họp" → "học", "chốt" → "chúc") và không có dấu câu, nên tóm tắt đôi khi gộp hai ý.
-- Qwen 1.5B nhỏ: tóm tắt phụ thuộc lần chạy có ra JSON hợp lệ không; vì vậy nhiều phần dùng quy tắc thay cho model.
+- Chế độ "Tự động" có thể đoán thiếu người trên giọng thật cùng giới (bản ghi thật đầu tiên ra 1 người thay vì 3); khi demo nên chọn đúng số người.
+- Gemini cần Internet; gói miễn phí giới hạn 500 request/ngày (Flash Lite) và có thể dùng dữ liệu gửi lên để cải thiện sản phẩm, nên chỉ dùng với cuộc họp demo. Lỗi hoặc hết hạn mức thì tự quay về Qwen.
+- Qwen 1.5B (khi không có Gemini) nhỏ: tóm tắt phụ thuộc lần chạy có ra JSON hợp lệ không; vì vậy nhiều phần dùng quy tắc thay cho model.
 - Xử lý đồng bộ: bản ghi dài có thể vượt timeout 300 s của Java dù AI vẫn chạy.
 - File audio chỉ có trên máy đã upload; cuộc họp do máy khác tạo (DB dùng chung) không phát lại được audio.
 
@@ -177,10 +179,10 @@ pyannote cần torch mới, token Hugging Face và đồng ý điều khoản mo
 Đã thử: khi tóm lời một người, Qwen 1.5B đảo nghĩa ("không đổi sang mô hình mới" thành "sang mô hình mới"); khi hỏi mục tiêu, nó ghép chữ có thật thành mục tiêu không ai nói. Với các câu hỏi này, trích từ biên bản theo quy tắc đáng tin hơn.
 
 **Làm sao biết câu trả lời không bịa?**
-Mỗi câu trả lời có trích dẫn (người + thời gian) để bấm nghe lại, và câu trả lời của Qwen phải qua kiểm tra bám nguồn ≥ 0,8.
+Mỗi câu trả lời có trích dẫn (người + thời gian) để bấm nghe lại, và câu trả lời của LLM phải qua kiểm tra bám nguồn ≥ 0,8. Tóm tắt của Gemini còn bị ép đúng cấu trúc JSON, từng ý phải là đoạn chép nguyên văn có trong biên bản.
 
 **Sao không dùng model lớn hơn?**
-GPU 6 GB phải chứa cùng lúc ba model (~4,7 GB). Model lớn hơn không vừa nếu không bỏ bớt chức năng.
+GPU 6 GB phải chứa cùng lúc ba model (~4,7 GB), nên model chạy local không lớn hơn được. Vì vậy tóm tắt và chat gọi **Gemini API** (model lớn chạy trên máy chủ Google), còn Qwen 1.5B chạy local làm dự phòng khi mất mạng hoặc hết hạn mức. ASR và phân người vẫn chạy local.
 
 ## 9. Bản đồ code
 
@@ -191,5 +193,6 @@ GPU 6 GB phải chứa cùng lúc ba model (~4,7 GB). Model lớn hơn không v�
 | Pipeline AI | `ai-service/main.py` (endpoint), `meeting_processing/service.py` |
 | Phân người | `meeting_processing/diarize.py`, `turns.py` |
 | Tóm tắt | `ai-service/summarization/`, `meeting_processing/attribution.py`, `summary_supplement.py` |
+| Chọn LLM (Gemini/Qwen) | `ai-service/llm_backend.py` |
 | Chatbot | `meeting_processing/chat.py` |
-| Đánh giá | `ai-service/tests/evaluate_diarization.py`, `data_test/demo_meeting/` |
+| Đánh giá | `ai-service/tests/evaluate_diarization.py`, `data_test/demo_meeting/`, `data_test/kich_ban_ghi_am_3_nguoi.md` |
