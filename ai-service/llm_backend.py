@@ -36,7 +36,7 @@ RETRY_DELAYS = (2.0, 5.0)
 TRANSIENT_HTTP = {500, 502, 503, 504}
 QUOTA_HTTP = 429
 API_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-ENV_KEYS = ("LLM_BACKEND", "GEMINI_API_KEY", "GEMINI_MODEL", "GEMINI_TIMEOUT", "GEMINI_FALLBACK_MODELS")
+ENV_KEYS = ("LLM_BACKEND", "GEMINI_API_KEY", "GEMINI_MODEL", "GEMINI_TIMEOUT", "GEMINI_FALLBACK_MODELS", "HF_TOKEN", "HUGGINGFACE_TOKEN")
 _ENV_FILES = (Path(__file__).resolve().parent / ".env", Path(__file__).resolve().parent.parent / ".env")
 _env_loaded = False
 # Model đã trả lời lần gọi thành công gần nhất (gọi tuần tự dưới gpu_lock)

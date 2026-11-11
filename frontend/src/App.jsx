@@ -323,7 +323,7 @@ ${m.transcript || "_Chưa có nội dung cuộc họp chi tiết._"}
           <div className="db-workspace-card">
             {/* Luôn gắn (chỉ ẩn khi sang tab khác): đổi tab lúc đang ghi âm hoặc đang
                 xử lý không làm mất bản ghi và kết quả. */}
-            <div style={{ display: activeTab === "speaker" ? "block" : "none" }}>
+            <div style={{ display: activeTab === "speaker" ? "flex" : "none", flexDirection: "column", flex: "1 1 0", height: "100%", maxHeight: "100%", minHeight: 0, minWidth: 0, overflow: "hidden" }}>
               <SpeakerChatMeeting
                 onMeetingSaved={loadMeetings}
                 openRequest={speakerOpenRequest}

@@ -1,22 +1,92 @@
 .speaker-meeting-container {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  max-width: 1280px;
+  max-width: 1600px;
   margin: 0 auto;
-  padding: 20px 20px 96px; /* chừa chỗ cho nút "Hỏi đáp" cố định ở góc dưới */
+  padding: 0;
   font-family: inherit;
   color: #1e293b;
   position: relative;
+  flex: 1 1 0;
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
 }
 
-/* ── Card Header ── */
+/* ── Bố cục 2 phần: Trái (Điều khiển) - Phải (Biên bản & Tóm tắt) ── */
+.smc-main-layout {
+  display: grid;
+  grid-template-columns: 410px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: 20px;
+  align-items: stretch;
+  flex: 1 1 0;
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 1080px) {
+  .smc-main-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    overflow-y: auto;
+  }
+}
+
+.smc-left-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.smc-right-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 16px;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+@media (max-width: 1280px) {
+  .smc-right-col {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+/* ── Card điều khiển bên trái ── */
 .meeting-header-card {
   background: #ffffff;
   border-radius: 12px;
-  padding: 24px;
+  padding: 16px 18px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
   border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.smc-card-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 4px 0;
+  line-height: 1.4;
 }
 
 .meeting-header-desc {
@@ -151,14 +221,19 @@
   background: #e2e8f0;
 }
 
-/* ── Hai bước: 1. chọn âm thanh, 2. xử lý ──
-   Dùng class riêng (smc-*): .btn-primary của App.css có width: 100% nên mọi nút
-   trải hết chiều ngang và trông ngang hàng nhau. */
+/* ── Hai bước: 1. chọn âm thanh, 2. xử lý ── */
 .smc-steps {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
   gap: 16px;
   margin-top: 18px;
+}
+
+.smc-steps-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
 }
 
 @media (max-width: 1100px) {
@@ -170,8 +245,76 @@
 .smc-step {
   border: 1px solid #e2e8f0;
   border-radius: 10px;
-  padding: 14px 16px;
+  padding: 10px 12px;
   background: #fbfdff;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.smc-audio-btn-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+
+.smc-audio-btn-grid .smc-btn {
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+  padding: 8px 6px;
+  font-size: 0.85rem;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.smc-step-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.smc-step-fields .meeting-title-input {
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 8px 10px;
+  font-size: 0.88rem;
+}
+
+.smc-process-action-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.smc-process-action-row .speaker-count-field {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.86rem;
+  font-weight: 500;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.smc-process-action-row .speaker-count-select {
+  padding: 6px 6px;
+  font-size: 0.86rem;
+}
+
+.smc-process-action-row .smc-btn-primary {
+  margin-left: 0;
+  flex: 1 1 0;
+  min-width: 0;
+  box-sizing: border-box;
+  text-align: center;
+  padding: 8px 8px;
+  font-size: 0.85rem;
+  white-space: nowrap;
 }
 
 .smc-step-title {
@@ -250,15 +393,36 @@
   opacity: 0.92;
 }
 
+.smc-btn-primary.is-processed,
+.smc-btn-primary.is-processed:disabled,
+.smc-btn-primary.is-processed:hover {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+  cursor: default;
+  opacity: 1;
+  font-weight: 600;
+}
+
 .smc-duration {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
-  color: #475569;
-  font-size: 0.92rem;
+  color: #64748b;
+  font-size: 0.86rem;
+  margin-top: 8px;
+  text-align: center;
+  background: #f8fafc;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #f1f5f9;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .smc-duration.is-recording {
   color: #dc2626;
+  background: #fef2f2;
+  border-color: #fee2e2;
 }
 
 .smc-hint {
@@ -268,14 +432,16 @@
 }
 
 .meeting-status-msg {
-  margin-top: 14px;
-  font-size: 0.92rem;
+  margin-top: 10px;
+  font-size: 0.88rem;
   color: #2563eb;
   font-weight: 500;
   background: #eff6ff;
-  padding: 10px 14px;
+  padding: 8px 12px;
   border-radius: 6px;
   border-left: 4px solid #2563eb;
+  box-sizing: border-box;
+  word-break: break-word;
 }
 
 .audio-player-box {
@@ -283,45 +449,43 @@
   width: 100%;
 }
 
-/* Chừa chỗ bên phải cho nút "Hỏi đáp" cố định ở góc màn hình, để nút không che
-   nút âm lượng/menu của trình phát khi trình phát nằm sát đáy màn hình */
-@media (min-width: 900px) {
-  .audio-player-box {
-    width: calc(100% - 150px);
-  }
-}
-
-/* ── Thẻ Biên bản người nói & Tóm tắt nội dung ngang hàng nhau ── */
-.meeting-content-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-}
-
-@media (max-width: 960px) {
-  .meeting-content-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
+/* ── Thẻ Biên bản người nói & Tóm tắt nội dung ── */
 .panel-card {
   background: #ffffff;
   border-radius: 12px;
-  padding: 20px;
+  padding: 16px 20px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
   border: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
-  height: 620px;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.panel-title-wrap {
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #f1f5f9;
+  flex-shrink: 0;
 }
 
 .panel-title {
   font-size: 1.15rem;
   font-weight: 700;
-  margin-bottom: 14px;
+  margin-bottom: 4px;
   color: #0f172a;
-  border-bottom: 2px solid #f1f5f9;
-  padding-bottom: 10px;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.panel-subtitle {
+  font-size: 0.82rem;
+  color: #64748b;
+  font-weight: 400;
+  line-height: 1.4;
 }
 
 .speaker-filter-bar {
@@ -330,6 +494,7 @@
   margin-bottom: 12px;
   overflow-x: auto;
   padding-bottom: 4px;
+  flex-shrink: 0;
 }
 
 .filter-chip {
@@ -351,20 +516,22 @@
 }
 
 .segments-scroll-list {
-  flex: 1;
+  flex: 1 1 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 12px;
   padding-right: 6px;
+  min-height: 0;
 }
 
 .summary-scroll-content {
-  flex: 1;
+  flex: 1 1 0;
   overflow-y: auto;
   padding-right: 8px;
   line-height: 1.7;
   color: #334155;
+  min-height: 0;
 }
 
 .summary-scroll-content h3 {
@@ -718,4 +885,48 @@
 .chat-suggestion-chip:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* ── Footer thông tin mô hình AI bé bé ── */
+.smc-models-footer {
+  margin-top: 10px;
+  padding: 10px 16px;
+  text-align: center;
+  font-size: 0.78rem;
+  color: #64748b;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  line-height: 1.5;
+  flex-shrink: 0;
+}
+
+.smc-footer-sep {
+  color: #94a3b8;
+  font-weight: 700;
+}
+
+/* ── Tùy biến thanh cuộn nội bộ cho danh sách ── */
+.segments-scroll-list::-webkit-scrollbar,
+.summary-scroll-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.segments-scroll-list::-webkit-scrollbar-track,
+.summary-scroll-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.segments-scroll-list::-webkit-scrollbar-thumb,
+.summary-scroll-content::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.segments-scroll-list::-webkit-scrollbar-thumb:hover,
+.summary-scroll-content::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }

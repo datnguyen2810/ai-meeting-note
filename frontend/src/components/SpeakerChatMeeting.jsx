@@ -201,7 +201,7 @@ export default function SpeakerChatMeeting({ onMeetingSaved, openRequest, onOpen
         .then((blob) => {
           if (blob && token === viewTokenRef.current) setAudioUrl(URL.createObjectURL(blob));
         })
-        .catch(() => {});
+        .catch(() => { });
     } catch (err) {
       if (token !== viewTokenRef.current) return;
       showMeeting(null);
@@ -357,7 +357,7 @@ export default function SpeakerChatMeeting({ onMeetingSaved, openRequest, onOpen
     if (!SUPPORTED_AUDIO.includes(ext)) {
       setStatusMessage(
         `Không hỗ trợ tệp ${ext || "không có đuôi"}. Hãy dùng ${SUPPORTED_AUDIO.join(", ")} ` +
-          "(M4A/WebM cần cài FFmpeg trên máy chạy AI)."
+        "(M4A/WebM cần cài FFmpeg trên máy chạy AI)."
       );
       return;
     }
@@ -479,7 +479,7 @@ export default function SpeakerChatMeeting({ onMeetingSaved, openRequest, onOpen
   const handleSeekAudio = (seconds) => {
     if (audioPlayerRef.current && seconds != null) {
       audioPlayerRef.current.currentTime = Number(seconds);
-      audioPlayerRef.current.play().catch(() => {});
+      audioPlayerRef.current.play().catch(() => { });
     }
   };
 
@@ -510,248 +510,268 @@ export default function SpeakerChatMeeting({ onMeetingSaved, openRequest, onOpen
 
   return (
     <div className="speaker-meeting-container">
-      {/* ── Header Card: Điều khiển ghi âm & xử lý ── */}
-      <div className="meeting-header-card">
-        <h2>Phiên âm theo người nói và Tóm tắt cuộc họp</h2>
-        <p className="meeting-header-desc">
-          {[
-            models.asr && `Phiên âm: ${modelName(models.asr)}`,
-            models.summary && `Tóm tắt: ${modelName(models.summary)}`,
-            `Phân người nói: ${diarizationLabel(diarizationEngine, currentMeetingId != null)}`,
-          ]
-            .filter(Boolean)
-            .join(" · ")}
-        </p>
+      {/* ── Bố cục 2 phần: Trái (Điều khiển ghi âm & xử lý) - Phải (Biên bản & Tóm tắt) ── */}
+      <div className="smc-main-layout">
+        {/* Cột trái: Thẻ Điều khiển & Xử lý cuộc họp */}
+        <div className="smc-left-col">
+          <div className="meeting-header-card">
+            <div className="panel-title-wrap">
+              <h2 className="smc-card-title">Điều khiển & Xử lý cuộc họp</h2>
+              <div className="panel-subtitle">Ghi âm trực tiếp hoặc chọn tệp âm thanh để bắt đầu</div>
+            </div>
 
-        {currentMeetingId != null && (
-          <div className="viewing-meeting-bar">
-            <span className="viewing-meeting-text">
-              {isLoadingMeeting ? "Đang mở cuộc họp" : "Đang xem"}:{" "}
-              <strong>{meetingInfo?.title || `Cuộc họp #${currentMeetingId}`}</strong>
-              {meetingInfo?.createdAt && (
-                <span className="viewing-meeting-date">
-                  {" · "}
-                  {new Date(meetingInfo.createdAt).toLocaleString("vi-VN")}
+            {currentMeetingId != null && (
+              <div className="viewing-meeting-bar">
+                <span className="viewing-meeting-text">
+                  {isLoadingMeeting ? "Đang mở cuộc họp" : "Đang xem"}:{" "}
+                  <strong>{meetingInfo?.title || `Cuộc họp #${currentMeetingId}`}</strong>
+                  {meetingInfo?.createdAt && (
+                    <span className="viewing-meeting-date">
+                      {" · "}
+                      {new Date(meetingInfo.createdAt).toLocaleString("vi-VN")}
+                    </span>
+                  )}
                 </span>
-              )}
-            </span>
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={startNewMeeting}
-              disabled={isLoading}
-            >
-              Cuộc họp mới
-            </button>
-          </div>
-        )}
-
-        <div className="smc-steps">
-          {/* Bước 1: chọn nguồn âm thanh */}
-          <div className="smc-step">
-            <div className="smc-step-title">1. Âm thanh cuộc họp</div>
-            <div className="smc-row">
-              {!isRecording ? (
-                <button type="button" className="smc-btn smc-btn-record" onClick={startRecording} disabled={isLoading}>
-                  ● Ghi âm
-                </button>
-              ) : (
-                <button type="button" className="smc-btn smc-btn-stop" onClick={stopRecording}>
-                  ■ Kết thúc ghi âm
-                </button>
-              )}
-              <label
-                className={`smc-btn smc-btn-outline ${isRecording || isLoading ? "is-disabled" : ""}`}
-                title={isRecording ? "Hãy kết thúc ghi âm trước khi chọn tệp" : "WAV, MP3, FLAC hoặc OGG"}
-              >
-                Chọn tệp âm thanh
-                <input
-                  type="file"
-                  accept={[...SUPPORTED_AUDIO, "audio/wav", "audio/mpeg", "audio/flac", "audio/ogg"].join(",")}
-                  onChange={handleFileUpload}
-                  disabled={isRecording || isLoading}
-                  style={{ display: "none" }}
-                />
-              </label>
-              <span className={`smc-duration ${isRecording ? "is-recording" : ""}`}>
-                {isRecording ? "Đang ghi " : "Thời lượng "}
-                {formatSeconds(duration)}
-              </span>
-            </div>
-          </div>
-
-          {/* Bước 2: tham số và xử lý */}
-          <div className="smc-step">
-            <div className="smc-step-title">2. Xử lý</div>
-            <div className="smc-row">
-              <input
-                type="text"
-                placeholder="Tiêu đề cuộc họp (tùy chọn)"
-                value={meetingTitle}
-                onChange={(e) => setMeetingTitle(e.target.value)}
-                className="meeting-title-input"
-              />
-              <label className="speaker-count-field" title="Nhập đúng số người giúp phân biệt người nói chính xác hơn">
-                Số người
-                <select
-                  value={numSpeakers}
-                  onChange={(e) => setNumSpeakers(e.target.value)}
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={startNewMeeting}
                   disabled={isLoading}
-                  className="speaker-count-select"
                 >
-                  <option value="">Tự động</option>
-                  {[1, 2, 3, 4, 5, 6].map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {(() => {
-                const alreadyProcessed = audioBlob != null && audioBlob === processedBlob;
-                const disabled = isLoading || isRecording || !audioBlob || alreadyProcessed;
-                return (
-                  <button
-                    type="button"
-                    className="smc-btn smc-btn-primary"
-                    onClick={handleProcessMeeting}
-                    disabled={disabled}
-                    title={
-                      alreadyProcessed
-                        ? "Bản ghi này đã được xử lý; ghi âm hoặc chọn tệp mới để xử lý tiếp"
-                        : !audioBlob
-                          ? "Ghi âm hoặc chọn tệp âm thanh trước"
-                          : undefined
-                    }
-                  >
-                    {isLoading ? "Đang xử lý..." : alreadyProcessed ? "Đã xử lý bản ghi này" : "Xử lý cuộc họp"}
-                  </button>
-                );
-              })()}
-            </div>
-            {/* Chỉ bộ pitch/MFCC mới hay tự đoán thiếu người; pyannote tự đoán được */}
-            {!numSpeakers && lastEngine !== PYANNOTE_ENGINE && audioBlob && audioBlob !== processedBlob && !isLoading && (
-              <div className="smc-hint">
-                Mẹo: chế độ "Tự động" có thể tách thiếu người khi giọng giống nhau; biết số người thì nên chọn ở ô
-                "Số người".
+                  Cuộc họp mới
+                </button>
               </div>
             )}
-          </div>
-        </div>
 
-        {statusMessage && <div className="meeting-status-msg">{statusMessage}</div>}
-
-        {audioUrl && (
-          <div className="audio-player-box">
-            <audio
-              ref={audioPlayerRef}
-              controls
-              src={audioUrl}
-              onLoadedMetadata={handleAudioMetadata}
-              onTimeUpdate={(e) => setPlayback({ time: e.currentTarget.currentTime, playing: !e.currentTarget.paused })}
-              onPlay={(e) => setPlayback({ time: e.currentTarget.currentTime, playing: true })}
-              onPause={(e) => setPlayback({ time: e.currentTarget.currentTime, playing: false })}
-              style={{ width: "100%" }}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* ── Thẻ Biên bản người nói & Tóm tắt nội dung ngang hàng nhau ── */}
-      <div className="meeting-content-grid">
-        {/* Cột trái: Biên bản theo người nói */}
-        <div className="panel-card">
-          <div className="panel-title">Biên bản theo người nói</div>
-
-          {speakers.length > 0 && (
-            <div className="speaker-filter-bar">
-              <button
-                className={`filter-chip ${activeSpeakerFilter === "" ? "active" : ""}`}
-                onClick={() => setActiveSpeakerFilter("")}
-              >
-                Tất cả
-              </button>
-              {speakers.map((spk) => {
-                const color = speakerColor(spk.speakerId);
-                const active = activeSpeakerFilter === spk.speakerId;
-                return (
-                  <button
-                    key={spk.speakerId}
-                    className={`filter-chip ${active ? "active" : ""}`}
-                    style={
-                      active
-                        ? { background: color.fg, borderColor: color.fg, color: "#ffffff" }
-                        : { background: color.bg, borderColor: color.border, color: color.fg }
-                    }
-                    onClick={() => setActiveSpeakerFilter(spk.speakerId)}
+            <div className="smc-steps smc-steps-vertical">
+              {/* Bước 1: chọn nguồn âm thanh */}
+              <div className="smc-step">
+                <div className="smc-step-title">1. Âm thanh cuộc họp</div>
+                <div className="smc-audio-btn-grid">
+                  {!isRecording ? (
+                    <button type="button" className="smc-btn smc-btn-record" onClick={startRecording} disabled={isLoading}>
+                      Ghi âm
+                    </button>
+                  ) : (
+                    <button type="button" className="smc-btn smc-btn-stop" onClick={stopRecording}>
+                      Kết thúc ghi âm
+                    </button>
+                  )}
+                  <label
+                    className={`smc-btn smc-btn-outline ${isRecording || isLoading ? "is-disabled" : ""}`}
+                    title={isRecording ? "Hãy kết thúc ghi âm trước khi chọn tệp" : "WAV, MP3, FLAC hoặc OGG"}
                   >
-                    {spk.label}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          <div className="segments-scroll-list">
-            {filteredSegments.length === 0 && segments.length === 0 && meetingInfo?.transcript ? (
-              // Cuộc họp tạo trước khi có phân người nói: chỉ có bản phiên âm thường
-              <div className="legacy-transcript">
-                <div className="legacy-transcript-note">
-                  Cuộc họp này chưa có phiên âm theo người nói; hiển thị bản phiên âm thường.
+                    Chọn tệp âm thanh
+                    <input
+                      type="file"
+                      accept={[...SUPPORTED_AUDIO, "audio/wav", "audio/mpeg", "audio/flac", "audio/ogg"].join(",")}
+                      onChange={handleFileUpload}
+                      disabled={isRecording || isLoading}
+                      style={{ display: "none" }}
+                    />
+                  </label>
                 </div>
-                <div className="legacy-transcript-text">{meetingInfo.transcript}</div>
+                <div className={`smc-duration ${isRecording ? "is-recording" : ""}`}>
+                  {isRecording ? "Đang ghi âm: " : "Thời lượng: "}
+                  {formatSeconds(duration)}
+                </div>
               </div>
-            ) : filteredSegments.length === 0 ? (
-              <div className="empty-panel-msg">
-                {isLoadingMeeting
-                  ? "Đang tải phiên âm..."
-                  : "Chưa có dữ liệu phiên âm. Hãy ghi âm hoặc tải tệp âm thanh lên rồi bấm \"Xử lý cuộc họp\"."}
-              </div>
-            ) : (
-              filteredSegments.map((seg) => {
-                const color = speakerColor(seg.speakerId);
-                const playing =
-                  playback.playing &&
-                  playback.time >= Number(seg.startSeconds) &&
-                  playback.time < Number(seg.endSeconds);
-                return (
-                  <div
-                    key={seg.segmentId || `${seg.startSeconds}-${seg.speakerId}`}
-                    className={`segment-item ${playing ? "playing" : ""}`}
-                    style={{ borderLeftColor: color.border, ...(playing ? { background: color.bg } : {}) }}
-                    onClick={() => handleSeekAudio(seg.startSeconds)}
-                    title={audioUrl ? "Bấm để nghe đoạn này" : "Không có audio của cuộc họp này trên máy"}
-                  >
-                    <div className="segment-header">
-                      <span className="speaker-tag" style={{ color: color.fg }}>
-                        {seg.speakerLabel || seg.speakerId || "Chưa rõ người nói"}
-                        {playing && <span className="playing-badge"> ▶ đang phát</span>}
-                      </span>
-                      <span className="time-tag">{formatRange(seg.startSeconds, seg.endSeconds)}</span>
-                    </div>
-                    <div className="segment-text">{seg.text}</div>
+
+              {/* Bước 2: tham số và xử lý */}
+              <div className="smc-step">
+                <div className="smc-step-title">2. Xử lý cuộc họp</div>
+                <div className="smc-step-fields">
+                  <input
+                    type="text"
+                    placeholder="Tiêu đề cuộc họp (tùy chọn)"
+                    value={meetingTitle}
+                    onChange={(e) => setMeetingTitle(e.target.value)}
+                    className="meeting-title-input"
+                  />
+                  <div className="smc-process-action-row">
+                    <label className="speaker-count-field" title="Nhập đúng số người giúp phân biệt người nói chính xác hơn">
+                      Số người
+                      <select
+                        value={numSpeakers}
+                        onChange={(e) => setNumSpeakers(e.target.value)}
+                        disabled={isLoading}
+                        className="speaker-count-select"
+                      >
+                        <option value="">Tự động</option>
+                        {[1, 2, 3, 4, 5, 6].map((n) => (
+                          <option key={n} value={n}>
+                            {n}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    {(() => {
+                      const alreadyProcessed = audioBlob != null && audioBlob === processedBlob;
+                      const disabled = isLoading || isRecording || !audioBlob || alreadyProcessed;
+                      return (
+                        <button
+                          type="button"
+                          className={`smc-btn smc-btn-primary smc-btn-process ${alreadyProcessed ? "is-processed" : ""}`}
+                          onClick={handleProcessMeeting}
+                          disabled={disabled}
+                          title={
+                            alreadyProcessed
+                              ? "Bản ghi này đã được xử lý; ghi âm hoặc chọn tệp mới để xử lý tiếp"
+                              : !audioBlob
+                                ? "Ghi âm hoặc chọn tệp âm thanh trước"
+                                : undefined
+                          }
+                        >
+                          {isLoading ? "Đang xử lý..." : alreadyProcessed ? "Đã xử lý xong" : "Xử lý cuộc họp"}
+                        </button>
+                      );
+                    })()}
                   </div>
-                );
-              })
+                </div>
+                {/* Chỉ bộ pitch/MFCC mới hay tự đoán thiếu người; pyannote tự đoán được */}
+                {!numSpeakers && lastEngine !== PYANNOTE_ENGINE && audioBlob && audioBlob !== processedBlob && !isLoading && (
+                  <div className="smc-hint">
+                    Mẹo: chế độ "Tự động" có thể tách thiếu người khi giọng giống nhau; biết số người thì nên chọn ở ô "Số người".
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {statusMessage && <div className="meeting-status-msg">{statusMessage}</div>}
+
+            {audioUrl && (
+              <div className="audio-player-box">
+                <audio
+                  ref={audioPlayerRef}
+                  controls
+                  src={audioUrl}
+                  onLoadedMetadata={handleAudioMetadata}
+                  onTimeUpdate={(e) => setPlayback({ time: e.currentTarget.currentTime, playing: !e.currentTarget.paused })}
+                  onPlay={(e) => setPlayback({ time: e.currentTarget.currentTime, playing: true })}
+                  onPause={(e) => setPlayback({ time: e.currentTarget.currentTime, playing: false })}
+                  style={{ width: "100%" }}
+                />
+              </div>
             )}
           </div>
         </div>
 
-        {/* Cột phải: Tóm tắt nội dung cuộc họp (ngang hàng) */}
-        <div className="panel-card">
-          <div className="panel-title">Tóm tắt nội dung cuộc họp</div>
+        {/* Cột phải: Biên bản theo người nói và Tóm tắt nội dung cuộc họp */}
+        <div className="smc-right-col">
+          {/* Thẻ: Biên bản theo người nói */}
+          <div className="panel-card">
+            <div className="panel-title-wrap">
+              <div className="panel-title">Biên bản theo người nói</div>
+              <div className="panel-subtitle">Nhấp vào câu thoại để nghe lại đoạn âm thanh tương ứng</div>
+            </div>
 
-          <div className="summary-scroll-content">
-            {summary ? (
-              <SummaryContent text={summary} />
-            ) : (
-              <div className="empty-panel-msg">
-                Chưa có nội dung tóm tắt. Sau khi xử lý cuộc họp, bản tóm tắt nội dung có cấu trúc (mục tiêu, kết quả, kế hoạch, vấn đề) sẽ tự động hiển thị tại đây.
+            {speakers.length > 0 && (
+              <div className="speaker-filter-bar">
+                <button
+                  className={`filter-chip ${activeSpeakerFilter === "" ? "active" : ""}`}
+                  onClick={() => setActiveSpeakerFilter("")}
+                >
+                  Tất cả
+                </button>
+                {speakers.map((spk) => {
+                  const color = speakerColor(spk.speakerId);
+                  const active = activeSpeakerFilter === spk.speakerId;
+                  return (
+                    <button
+                      key={spk.speakerId}
+                      className={`filter-chip ${active ? "active" : ""}`}
+                      style={
+                        active
+                          ? { background: color.fg, borderColor: color.fg, color: "#ffffff" }
+                          : { background: color.bg, borderColor: color.border, color: color.fg }
+                      }
+                      onClick={() => setActiveSpeakerFilter(spk.speakerId)}
+                    >
+                      {spk.label}
+                    </button>
+                  );
+                })}
               </div>
             )}
+
+            <div className="segments-scroll-list">
+              {filteredSegments.length === 0 && segments.length === 0 && meetingInfo?.transcript ? (
+                // Cuộc họp tạo trước khi có phân người nói: chỉ có bản phiên âm thường
+                <div className="legacy-transcript">
+                  <div className="legacy-transcript-note">
+                    Cuộc họp này chưa có phiên âm theo người nói; hiển thị bản phiên âm thường.
+                  </div>
+                  <div className="legacy-transcript-text">{meetingInfo.transcript}</div>
+                </div>
+              ) : filteredSegments.length === 0 ? (
+                <div className="empty-panel-msg">
+                  {isLoadingMeeting
+                    ? "Đang tải phiên âm..."
+                    : "Chưa có dữ liệu phiên âm. Hãy ghi âm hoặc tải tệp âm thanh lên rồi bấm \"Xử lý cuộc họp\"."}
+                </div>
+              ) : (
+                filteredSegments.map((seg) => {
+                  const color = speakerColor(seg.speakerId);
+                  const playing =
+                    playback.playing &&
+                    playback.time >= Number(seg.startSeconds) &&
+                    playback.time < Number(seg.endSeconds);
+                  return (
+                    <div
+                      key={seg.segmentId || `${seg.startSeconds}-${seg.speakerId}`}
+                      className={`segment-item ${playing ? "playing" : ""}`}
+                      style={{ borderLeftColor: color.border, ...(playing ? { background: color.bg } : {}) }}
+                      onClick={() => handleSeekAudio(seg.startSeconds)}
+                      title={audioUrl ? "Bấm để nghe đoạn này" : "Không có audio của cuộc họp này trên máy"}
+                    >
+                      <div className="segment-header">
+                        <span className="speaker-tag" style={{ color: color.fg }}>
+                          {seg.speakerLabel || seg.speakerId || "Chưa rõ người nói"}
+                          {playing && <span className="playing-badge"> (đang phát)</span>}
+                        </span>
+                        <span className="time-tag">{formatRange(seg.startSeconds, seg.endSeconds)}</span>
+                      </div>
+                      <div className="segment-text">{seg.text}</div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* Thẻ: Tóm tắt nội dung cuộc họp */}
+          <div className="panel-card">
+            <div className="panel-title-wrap">
+              <div className="panel-title">Tóm tắt nội dung cuộc họp</div>
+              <div className="panel-subtitle">Tự động trích xuất các ý chính theo cấu trúc nội dung</div>
+            </div>
+
+            <div className="summary-scroll-content">
+              {summary ? (
+                <SummaryContent text={summary} />
+              ) : (
+                <div className="empty-panel-msg">
+                  Chưa có nội dung tóm tắt. Sau khi xử lý cuộc họp, bản tóm tắt nội dung có cấu trúc (mục tiêu, kết quả, kế hoạch, vấn đề) sẽ tự động hiển thị tại đây.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
+
+      {/* ── Footer: Thông tin các mô hình AI bé bé ── */}
+      <footer className="smc-models-footer">
+        <span>Phiên âm: {modelName(models.asr) || "PhoWhisper-small"}</span>
+        <span className="smc-footer-sep">·</span>
+        <span>Tóm tắt: {modelName(models.summary) || "Qwen2.5-1.5B-Instruct"}</span>
+        <span className="smc-footer-sep">·</span>
+        <span>
+          Phân người nói:{" "}
+          {diarizationEngine
+            ? diarizationLabel(diarizationEngine, true)
+            : "pyannote (speaker-diarization-community-1)"}
+        </span>
+      </footer>
 
       {/* ── Biểu tượng Bot ở góc dưới bên phải màn hình ── */}
       <button
@@ -794,7 +814,7 @@ export default function SpeakerChatMeeting({ onMeetingSaved, openRequest, onOpen
               onClick={() => setIsChatOpen(false)}
               title="Đóng trợ lý"
             >
-              Đóng
+              X
             </button>
           </div>
 

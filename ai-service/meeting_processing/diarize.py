@@ -2,17 +2,34 @@ import os
 import torch
 import numpy as np
 import librosa
+from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import silhouette_score
 
 def _hf_token() -> Optional[str]:
-    """Token Hugging Face: biến môi trường HF_TOKEN, hoặc token đã lưu bằng
-    `hf auth login` (nằm trong thư mục người dùng, ngoài repo)."""
+    """Token Hugging Face: biến môi trường HF_TOKEN, file .env trong repo,
+    hoặc token đã lưu bằng `hf auth login` (nằm trong thư mục người dùng, ngoài repo)."""
     token = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_TOKEN")
     if token:
         return token
+    # Doc tu file .env neu chua duoc load vao os.environ
+    for env_path in (
+        Path(__file__).resolve().parent.parent / ".env",
+        Path(__file__).resolve().parent.parent.parent / ".env",
+    ):
+        if env_path.is_file():
+            try:
+                for line in env_path.read_text(encoding="utf-8").splitlines():
+                    line = line.strip()
+                    if line.startswith("HF_TOKEN=") or line.startswith("HUGGINGFACE_TOKEN="):
+                        val = line.split("=", 1)[1].strip().strip('"').strip("'")
+                        if val:
+                            os.environ["HF_TOKEN"] = val
+                            return val
+            except Exception:
+                pass
     try:
         from huggingface_hub import get_token
         return get_token()
