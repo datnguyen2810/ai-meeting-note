@@ -845,7 +845,8 @@ body {
 
 /* ── Left Sidebar: History + Profile ─── */
 .db-sidebar {
-  width: 330px;
+  /* Co theo màn hình để vùng làm việc không bị bóp trên laptop (1536px khi scale 125%) */
+  width: clamp(260px, 18vw, 330px);
   flex-shrink: 0;
   background: #ffffff;
   border-right: 1px solid #e2e8f0;
@@ -1007,9 +1008,11 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
   margin-bottom: 4px;
 }
 
+/* Tên dài thì cắt "…", nhãn trạng thái luôn giữ một dòng (cột lịch sử co theo màn hình) */
 .db-card-title {
   font-size: 13.5px;
   font-weight: 600;
@@ -1017,10 +1020,13 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 180px;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .db-card-status {
+  flex-shrink: 0;
+  white-space: nowrap;
   font-size: 10px;
   font-weight: 700;
   color: #059669;

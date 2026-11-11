@@ -18,7 +18,9 @@
 /* ── Bố cục 2 phần: Trái (Điều khiển) - Phải (Biên bản & Tóm tắt) ── */
 .smc-main-layout {
   display: grid;
-  grid-template-columns: 410px minmax(0, 1fr);
+  /* Cột điều khiển co theo màn hình: laptop 1536px (Windows scale 125%) còn ~340px,
+     nhường chỗ cho biên bản và tóm tắt */
+  grid-template-columns: clamp(300px, 22vw, 400px) minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   gap: 20px;
   align-items: stretch;
@@ -60,7 +62,6 @@
 @media (max-width: 1280px) {
   .smc-right-col {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 
@@ -78,7 +79,9 @@
   max-height: 100%;
   min-height: 0;
   box-sizing: border-box;
-  overflow: hidden;
+  /* Màn hình thấp: cuộn trong cột thay vì cắt mất trạng thái xử lý, trình phát âm thanh */
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .smc-card-title {
@@ -265,7 +268,9 @@
   padding: 8px 6px;
   font-size: 0.85rem;
   min-width: 0;
-  white-space: nowrap;
+  /* Cột hẹp: cho chữ xuống dòng trong nút thay vì tràn ra ngoài */
+  white-space: normal;
+  line-height: 1.25;
 }
 
 .smc-step-fields {
@@ -285,6 +290,7 @@
 
 .smc-process-action-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   width: 100%;
@@ -308,7 +314,8 @@
 
 .smc-process-action-row .smc-btn-primary {
   margin-left: 0;
-  flex: 1 1 0;
+  /* Không đủ 140px cạnh ô số người thì nút xuống hàng riêng, rộng hết cột */
+  flex: 1 1 140px;
   min-width: 0;
   box-sizing: border-box;
   text-align: center;
@@ -954,4 +961,33 @@
 .segments-scroll-list::-webkit-scrollbar-thumb:hover,
 .summary-scroll-content::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+/* ── Màn hình hẹp hoặc thấp: bỏ khóa vừa một màn hình, cả khung cuộn tự nhiên ──
+   Khóa một màn hình chỉ hợp khi đủ rộng và cao; nếu vẫn khóa, biên bản và tóm tắt
+   xếp chồng bị bóp còn nửa chiều cao. */
+@media (max-width: 1280px), (max-height: 680px) {
+  .speaker-meeting-container {
+    overflow-y: auto;
+  }
+
+  .smc-main-layout,
+  .smc-left-col,
+  .meeting-header-card,
+  .smc-right-col {
+    flex: none;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .smc-main-layout,
+  .smc-right-col {
+    grid-template-rows: auto;
+  }
+
+  .smc-right-col > .panel-card {
+    height: clamp(360px, 75vh, 640px);
+    max-height: none;
+  }
 }
