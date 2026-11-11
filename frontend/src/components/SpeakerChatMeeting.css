@@ -425,6 +425,23 @@
   border-color: #fee2e2;
 }
 
+.smc-duration.is-empty {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.smc-duration {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.smc-step-note {
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
 .smc-hint {
   margin-top: 8px;
   font-size: 0.82rem;
@@ -640,6 +657,14 @@
   background: #1d4ed8;
   transform: translateY(-2px);
   box-shadow: 0 14px 28px -4px rgba(37, 99, 235, 0.55), 0 8px 12px -3px rgba(37, 99, 235, 0.35);
+}
+
+.bot-fab-btn:disabled {
+  background: #94a3b8;
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+  opacity: 0.75;
 }
 
 .bot-fab-btn.active {

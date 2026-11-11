@@ -3,7 +3,6 @@ import { api, getStoredUser, getStoredToken } from "./services/api";
 import LandingPage from "./pages/LandingPage";
 import AuthPage from "./pages/AuthPage";
 import LiveMeetingRoom from "./components/LiveMeetingRoom";
-import SpeechToTextDemo from "./components/SpeechToTextDemo";
 import SpeakerChatMeeting from "./components/SpeakerChatMeeting";
 import "./App.css";
 
@@ -208,13 +207,6 @@ ${m.transcript || "_Chưa có nội dung cuộc họp chi tiết._"}
           >
             Cuộc họp trực tiếp
           </button>
-          <button
-            type="button"
-            className={`db-tab-btn ${activeTab === "upload" ? "active" : ""}`}
-            onClick={() => setActiveTab("upload")}
-          >
-            Tải file & Phân tích
-          </button>
         </div>
 
         {/* Nút đăng xuất to và có màu nổi bật */}
@@ -332,7 +324,6 @@ ${m.transcript || "_Chưa có nội dung cuộc họp chi tiết._"}
               />
             </div>
             {activeTab === "live" && <LiveMeetingRoom onMeetingSaved={loadMeetings} />}
-            {activeTab === "upload" && <SpeechToTextDemo onMeetingSaved={loadMeetings} />}
           </div>
         </main>
       </div>

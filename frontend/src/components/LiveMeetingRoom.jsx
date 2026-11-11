@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useLiveTranscription } from "../hooks/useLiveTranscription";
 import { api } from "../services/api";
 import SummaryContent from "./SummaryContent";
+import "./MeetingNote.css"; // mn-spinner, mn-error (dùng cả ở App.jsx)
 import "./LiveMeetingRoom.css";
 
 export default function LiveMeetingRoom({ onMeetingSaved }) {

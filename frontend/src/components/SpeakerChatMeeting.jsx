@@ -124,6 +124,9 @@ export default function SpeakerChatMeeting({ onMeetingSaved, openRequest, onOpen
   // Vị trí đang phát, để tô sáng đoạn biên bản tương ứng
   const [playback, setPlayback] = useState({ time: 0, playing: false });
 
+  // Hỏi đáp cần một cuộc họp có các đoạn theo người nói
+  const chatAvailable = currentMeetingId != null && segments.length > 0;
+
   const setDiarizationEngine = (engine) => {
     setDiarizationEngineState(engine);
     if (engine && engine !== "none") {
@@ -571,9 +574,15 @@ export default function SpeakerChatMeeting({ onMeetingSaved, openRequest, onOpen
                     />
                   </label>
                 </div>
-                <div className={`smc-duration ${isRecording ? "is-recording" : ""}`}>
-                  {isRecording ? "Đang ghi âm: " : "Thời lượng: "}
-                  {formatSeconds(duration)}
+                <div
+                  className={`smc-duration ${isRecording ? "is-recording" : ""} ${!isRecording && !audioUrl ? "is-empty" : ""}`}
+                  title={audioBlob?.name || undefined}
+                >
+                  {isRecording
+                    ? `Đang ghi âm: ${formatSeconds(duration)}`
+                    : !audioUrl
+                      ? "Chưa có âm thanh"
+                      : `${audioBlob?.name || (audioBlob ? "Bản ghi âm" : "Âm thanh cuộc họp")} · ${formatSeconds(duration)}`}
                 </div>
               </div>
 
@@ -628,6 +637,13 @@ export default function SpeakerChatMeeting({ onMeetingSaved, openRequest, onOpen
                     })()}
                   </div>
                 </div>
+                {!audioBlob && !isLoading && !isRecording && (
+                  <div className="smc-step-note">
+                    {currentMeetingId
+                      ? "Đang xem cuộc họp đã xử lý. Ghi âm hoặc chọn tệp mới để xử lý cuộc họp khác."
+                      : "Ghi âm hoặc chọn tệp âm thanh ở bước 1 để bật nút xử lý."}
+                  </div>
+                )}
                 {/* Chỉ bộ pitch/MFCC mới hay tự đoán thiếu người; pyannote tự đoán được */}
                 {!numSpeakers && lastEngine !== PYANNOTE_ENGINE && audioBlob && audioBlob !== processedBlob && !isLoading && (
                   <div className="smc-hint">
@@ -751,7 +767,7 @@ export default function SpeakerChatMeeting({ onMeetingSaved, openRequest, onOpen
                 <SummaryContent text={summary} />
               ) : (
                 <div className="empty-panel-msg">
-                  Chưa có nội dung tóm tắt. Sau khi xử lý cuộc họp, bản tóm tắt nội dung có cấu trúc (mục tiêu, kết quả, kế hoạch, vấn đề) sẽ tự động hiển thị tại đây.
+                  Chưa có nội dung tóm tắt. Sau khi xử lý cuộc họp, bản tóm tắt nội dung có cấu trúc (mục tiêu, kết quả, vấn đề, quyết định, phân công) sẽ tự động hiển thị tại đây.
                 </div>
               )}
             </div>
@@ -760,25 +776,41 @@ export default function SpeakerChatMeeting({ onMeetingSaved, openRequest, onOpen
       </div>
 
       {/* ── Footer: Thông tin các mô hình AI bé bé ── */}
+      {/* Chỉ hiện model thực sự đã dùng (backend trả); chưa biết thì không đoán */}
       <footer className="smc-models-footer">
-        <span>Phiên âm: {modelName(models.asr) || "PhoWhisper-small"}</span>
-        <span className="smc-footer-sep">·</span>
-        <span>Tóm tắt: {modelName(models.summary) || "Qwen2.5-1.5B-Instruct"}</span>
-        <span className="smc-footer-sep">·</span>
-        <span>
-          Phân người nói:{" "}
-          {diarizationEngine
-            ? diarizationLabel(diarizationEngine, true)
-            : "pyannote (speaker-diarization-community-1)"}
-        </span>
+        {(() => {
+          const items = [
+            models.asr && `Phiên âm: ${modelName(models.asr)}`,
+            models.summary && `Tóm tắt: ${modelName(models.summary)}`,
+            diarizationEngine && `Phân người nói: ${diarizationLabel(diarizationEngine, true)}`,
+          ].filter(Boolean);
+          if (!items.length) {
+            return <span>{currentMeetingId ? "Không có thông tin mô hình cho cuộc họp này" : "Tên các mô hình AI sẽ hiện sau khi xử lý cuộc họp"}</span>;
+          }
+          return items.map((text, i) => (
+            <span key={text}>
+              {i > 0 && <span className="smc-footer-sep">· </span>}
+              {text}
+            </span>
+          ));
+        })()}
       </footer>
 
       {/* ── Biểu tượng Bot ở góc dưới bên phải màn hình ── */}
       <button
         type="button"
-        className={`bot-fab-btn ${isChatOpen ? "active" : ""}`}
+        className={`bot-fab-btn ${isChatOpen && chatAvailable ? "active" : ""}`}
         onClick={() => setIsChatOpen((prev) => !prev)}
-        title={isChatOpen ? "Thu nhỏ trợ lý AI" : "Mở trợ lý hỏi đáp AI"}
+        disabled={!chatAvailable}
+        title={
+          !chatAvailable
+            ? currentMeetingId
+              ? "Cuộc họp này chưa có phiên âm theo người nói nên chưa hỏi đáp được"
+              : "Xử lý hoặc mở một cuộc họp trước khi hỏi đáp"
+            : isChatOpen
+              ? "Thu nhỏ trợ lý AI"
+              : "Mở trợ lý hỏi đáp AI"
+        }
       >
         <svg
           width="24"
@@ -801,7 +833,7 @@ export default function SpeakerChatMeeting({ onMeetingSaved, openRequest, onOpen
       </button>
 
       {/* ── Cửa sổ Chat AI bật lên khi ấn vào biểu tượng Bot ── */}
-      {isChatOpen && (
+      {isChatOpen && chatAvailable && (
         <div className="bot-chat-window">
           <div className="bot-chat-header">
             <div className="bot-header-info">
