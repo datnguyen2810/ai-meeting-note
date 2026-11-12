@@ -132,8 +132,12 @@ lerna-debug.log*
 # 6. General & Miscellaneous
 # ------------------------------------------------------------------------------
 note.txt
-
-ket_qua_tom_tat_30p_qwen.txt
 docs/
-uploads/
 **/uploads/
+
+# Tài liệu làm việc nội bộ
+/AGENTS.md
+/CLAUDE.md
+/PLAN_REALTIME_HYBRID_ASR.md
+/PLAN_SPEAKERS_CHAT.md
+/TINH_NANG_PHAN_NGUOI_CHAT.md
